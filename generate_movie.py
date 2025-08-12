@@ -4,8 +4,10 @@ import cv2
 import numpy as np
 import subprocess
 import tempfile
+import re
 from astropy.io import fits
 
+# 画像ファイルを読み込む関数（PNG または FITS）
 def read_image(image_path):
     ext = os.path.splitext(image_path)[1].lower()
     if ext == '.png':
@@ -26,7 +28,9 @@ def read_image(image_path):
     return frame
 
 # 画像から動画を生成する関数
-def create_video_with_ffmpeg(input_dir, output_file, fps=10, crf=23):  # ← crf 引数を追加
+# --caption が指定された場合は、各フレームの左下にファイル名（ベースネーム）を描画
+# --caption_re が指定された場合は、正規表現でファイル名を置換して描画
+def create_video_with_ffmpeg(input_dir, output_file, fps=10, crf=23, caption=False, caption_re=None):
     images = sorted([
         img for img in os.listdir(input_dir)
         if img.lower().endswith(('.png', '.fits', '.fit'))
@@ -39,11 +43,31 @@ def create_video_with_ffmpeg(input_dir, output_file, fps=10, crf=23):  # ← crf
             image_path = os.path.join(input_dir, image_name)
             try:
                 frame = read_image(image_path)
+
+                # キャプション表示が有効な場合
+                if caption:
+                    basename = os.path.basename(image_name)
+                    if caption_re:
+                        pattern, replacement = caption_re
+                        basename = re.sub(pattern, replacement, basename)
+
+                    # テキスト描画設定
+                    font = cv2.FONT_HERSHEY_SIMPLEX
+                    font_scale = 1
+                    color = (255,)  # グレースケール画像なので白
+                    thickness = 1
+                    margin = 100
+                    text_x = margin
+                    text_y = frame.shape[0] - margin
+                    cv2.putText(frame, basename, (text_x, text_y), font, font_scale, color, thickness, cv2.LINE_AA)
+
                 output_path = os.path.join(temp_dir, f"frame_{i:04d}.png")
                 cv2.imwrite(output_path, frame)
             except Exception as e:
                 print(f"警告: {image_name} の読み込みに失敗しました。スキップします。理由: {e}")
                 continue
+
+        # FFmpeg コマンドで動画生成
         ffmpeg_cmd = [
             'ffmpeg',
             '-y',
@@ -64,6 +88,17 @@ if __name__ == "__main__":
     parser.add_argument("output_file", help="生成する動画ファイル名（例: output.mp4）")
     parser.add_argument("--fps", type=int, default=10, help="動画のフレームレート（デフォルト: 10）")
     parser.add_argument("--crf", type=int, default=23, help="画質（CRF値 1～50、デフォルト: 23）")
+    parser.add_argument("--caption", action="store_true", help="各フレームの左下にファイル名を表示する")
+    parser.add_argument("--caption_re", nargs=2, metavar=('PATTERN', 'REPLACEMENT'),
+                        help="ファイル名の置換（正規表現）: PATTERN を REPLACEMENT に置換")
+
     args = parser.parse_args()
 
-    create_video_with_ffmpeg(args.input_dir, args.output_file, fps=args.fps, crf=args.crf)
+    create_video_with_ffmpeg(
+        args.input_dir,
+        args.output_file,
+        fps=args.fps,
+        crf=args.crf,
+        caption=args.caption,
+        caption_re=args.caption_re
+    )
