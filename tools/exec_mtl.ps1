@@ -1,8 +1,8 @@
 <#
-This script processes FITS files to create timelapse videos.
+    This script processes FITS files to create timelapse videos.
 
-入力ファイル:モノクロ fits 形式のみ
-出力ファイル:動画形式 mp4
+    入力ファイル:モノクロ形式のみ
+    出力ファイル:動画形式 mp4
 #>
 
 # DemonsRegistration の繰返し回数を指定
@@ -17,18 +17,22 @@ $proc_type_list = @("")
 $normalize = $false
 
 # 参照画像のベース名
-$ref_basename = "14_34_55_2025-08-12T014716_autostretch_0_00"
+#$ref_basename = "14_34_55_2025-08-12T014716_autostretch_0_00"
+$ref_basename = "14_34_55_2025-07-29T205504_disk_0_00"
 
-# FITS ディレクトリのベース名
-$fits_dir_basename = "fits"
+# サンプルフォルダ
+$sample_dir = "samples/40_sun_full_disk"
+
+# input ディレクトリのベース名
+$input_dir_basename = "$sample_dir/input"
 
 $proc_type_list | ForEach-Object {
     $proc_type = $_
-    $fits_dir = "$fits_dir_basename$proc_type"
-    $ref = "$fits_dir/$ref_basename.fits"
+    $input_dir = "$input_dir_basename$proc_type"
+    $ref = "$input_dir/$ref_basename.fits"
 
-    if (-Not (Test-Path $fits_dir)) {
-        Write-Host "ディレクトリが存在しません: $fits_dir"
+    if (-Not (Test-Path $input_dir)) {
+        Write-Host "ディレクトリが存在しません: $input_dir"
         return
     }
 
@@ -37,20 +41,20 @@ $proc_type_list | ForEach-Object {
         return
     }
 
-    Write-Host "処理タイプ: $_, fits_dir: $fits_dir, ref: $ref"
+    Write-Host "処理タイプ: $_, input_dir: $input_dir, ref: $ref"
 
     $iterations_list | ForEach-Object {
         #
         # 歪み補正
         #
         $iters = $_
-        $aligned_dir = "aligned_$iters$proc_type"
+        $aligned_dir = "$sample_dir/aligned_$iters$proc_type"
         
-        $movie = "./movie/timelapse_$iters$proc_type.mp4"
+        $movie = "$sample_dir/timelapse_$iters$proc_type.mp4"
         $align_cmd = @(
-            "python", "make_timelapse_fits_sitk.py",
+            "python", "make_timelapse.py",
             "--ref", $ref,
-            "--fits_dir", $fits_dir,
+            "--input_dir", $input_dir,
             "--aligned_dir", $aligned_dir,
             "--movie", $movie,
             "--iterations", "$iters",
@@ -77,7 +81,7 @@ $proc_type_list | ForEach-Object {
             #
             $normalized_dir = "$($aligned_dir)_normalized"
             $normalize_cmd = @(
-                "python", "normalize_images.py",
+                "python", "../normalize_images.py",
                 "--ref", "./$aligned_dir/aligned_$ref_basename.png",
                 "--input_dir", $aligned_dir,
                 "--output_dir", $normalized_dir
