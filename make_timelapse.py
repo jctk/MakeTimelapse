@@ -43,6 +43,9 @@ parser.add_argument('--fast', action='store_true', help='高速版DemonsRegistra
 parser.add_argument('--multiscale', action='store_true', help='マルチスケール Demons を使用する(実験的実装)')
 parser.add_argument('--crf', type=int, default=23, help='ffmpegの画質設定（デフォルト: 23）')
 parser.add_argument('--fps', type=int, default=7, help='動画のフレームレート（デフォルト: 7）')
+parser.add_argument("--caption", action="store_true", help="各フレームの左下にファイル名を表示する")
+parser.add_argument("--caption_re", nargs=2, metavar=('PATTERN', 'REPLACEMENT'),
+                    help="ファイル名の置換（正規表現）: PATTERN を REPLACEMENT に置換")
 
 args = parser.parse_args()
 
@@ -215,11 +218,15 @@ if __name__ == "__main__":
 
         generate_cmd = [
             'python', generate_script,
-            '--fps', str(args.fps),
-            '--crf', str(args.crf),
             aligned_dir,
-            video_path
+            video_path,
+            '--fps', str(args.fps),
+            '--crf', str(args.crf)
         ]
+        if args.caption:
+            generate_cmd += ['--caption']
+        if args.caption_re:
+            generate_cmd += ['--caption_re'] + args.caption_re
 
         print("generate_movie.py による動画生成を開始します...")
         subprocess.run(generate_cmd, check=True)

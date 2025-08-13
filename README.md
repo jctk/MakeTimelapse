@@ -96,6 +96,9 @@ options:
   --multiscale          マルチスケール Demons を使用する(実験的実装)
   --crf CRF             ffmpegの画質設定（デフォルト: 23）
   --fps FPS             動画のフレームレート（デフォルト: 7）
+  --caption             各フレームの左下にファイル名を表示する
+  --caption_re PATTERN REPLACEMENT
+                        ファイル名の置換（正規表現）: PATTERN を REPLACEMENT に置換
 ```
 
 ### gemerate_movie.py

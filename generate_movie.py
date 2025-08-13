@@ -54,11 +54,34 @@ def create_video_with_ffmpeg(input_dir, output_file, fps=10, crf=23, caption=Fal
                     # テキスト描画設定
                     font = cv2.FONT_HERSHEY_SIMPLEX
                     font_scale = 1
-                    color = (255,)  # グレースケール画像なので白
                     thickness = 1
+                    color = (255,)  # 白（グレースケール）
                     margin = 100
-                    text_x = margin
-                    text_y = frame.shape[0] - margin
+
+                    # 文字サイズを取得
+                    (text_width, text_height), baseline = cv2.getTextSize(basename, font, font_scale, thickness)
+
+                    # 背景サイズを1.2倍に拡張
+                    scale = 1.2
+                    bg_width = int(text_width * scale)
+                    bg_height = int(text_height * scale)
+
+                    # 背景の左上座標（画面下部に中央配置）
+                    bg_x1 = margin
+                    bg_y1 = frame.shape[0] - margin - bg_height
+
+                    # 背景の右下座標
+                    bg_x2 = bg_x1 + bg_width
+                    bg_y2 = bg_y1 + bg_height
+
+                    # 黒い背景を描画
+                    cv2.rectangle(frame, (bg_x1, bg_y1), (bg_x2, bg_y2), (0,), thickness=cv2.FILLED)
+
+                    # テキストの描画位置（背景の中央に配置）
+                    text_x = bg_x1 + (bg_width - text_width) // 2
+                    text_y = bg_y1 + (bg_height + text_height) // 2  # ベースライン調整込み
+
+                    # テキストを描画
                     cv2.putText(frame, basename, (text_x, text_y), font, font_scale, color, thickness, cv2.LINE_AA)
 
                 output_path = os.path.join(temp_dir, f"frame_{i:04d}.png")
@@ -93,6 +116,10 @@ if __name__ == "__main__":
                         help="ファイル名の置換（正規表現）: PATTERN を REPLACEMENT に置換")
 
     args = parser.parse_args()
+
+    print("指定されたオプション:")
+    for arg in vars(args):
+        print(f"  {arg}: {getattr(args, arg)}")
 
     create_video_with_ffmpeg(
         args.input_dir,
