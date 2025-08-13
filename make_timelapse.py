@@ -206,23 +206,24 @@ if __name__ == "__main__":
         print("処理を中断しました。")
         exit(1)
 
-    video_path = os.path.abspath(args.movie) if args.movie else get_next_movie_filename(movie_dir)
+    if args.movie:
+        video_path = os.path.abspath(args.movie) if args.movie else get_next_movie_filename(movie_dir)
 
-    # generate_movie.py を呼び出して動画生成
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    generate_script = os.path.join(script_dir, 'generate_movie.py')
+        # generate_movie.py を呼び出して動画生成
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        generate_script = os.path.join(script_dir, 'generate_movie.py')
 
-    generate_cmd = [
-        'python', generate_script,
-        '--fps', str(args.fps),
-        '--crf', str(args.crf),
-        aligned_dir,
-        video_path
-    ]
+        generate_cmd = [
+            'python', generate_script,
+            '--fps', str(args.fps),
+            '--crf', str(args.crf),
+            aligned_dir,
+            video_path
+        ]
 
-    print("generate_movie.py による動画生成を開始します...")
-    subprocess.run(generate_cmd, check=True)
-    print(f'動画を保存しました: {video_path}')
+        print("generate_movie.py による動画生成を開始します...")
+        subprocess.run(generate_cmd, check=True)
+        print(f'動画を保存しました: {video_path}')
 
     end_time = datetime.datetime.now()
     print(f"実行終了: {end_time.strftime('%Y-%m-%d %H:%M:%S')}")
