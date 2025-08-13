@@ -7,8 +7,6 @@ import argparse
 import SimpleITK as sitk
 import concurrent.futures
 import datetime
-import tempfile
-import shutil
 import subprocess
 
 # FITSファイルをSimpleITKのfloat32画像に変換する関数
@@ -210,29 +208,21 @@ if __name__ == "__main__":
 
     video_path = os.path.abspath(args.movie) if args.movie else get_next_movie_filename(movie_dir)
 
-    # ffmpegによる動画生成
-    temp_img_dir = tempfile.mkdtemp()
-    for i, img in enumerate(aligned_imgs):
-        vimg_uint8 = (img / 256).astype(np.uint8)
-        save_path = os.path.join(temp_img_dir, f"frame_{i:04d}.png")
-        cv2.imwrite(save_path, vimg_uint8)
+    # generate_movie.py を呼び出して動画生成
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    generate_script = os.path.join(script_dir, 'generate_movie.py')
 
-    ffmpeg_cmd = [
-        'ffmpeg',
-        '-y',
-        '-framerate', str(args.fps),
-        '-i', os.path.join(temp_img_dir, 'frame_%04d.png'),
-        '-c:v', 'libx264',
-        '-crf', str(args.crf),
-        '-pix_fmt', 'yuv420p',
+    generate_cmd = [
+        'python', generate_script,
+        '--fps', str(args.fps),
+        '--crf', str(args.crf),
+        aligned_dir,
         video_path
     ]
 
-    print("ffmpegによる動画生成を開始します...")
-    subprocess.run(ffmpeg_cmd, check=True)
+    print("generate_movie.py による動画生成を開始します...")
+    subprocess.run(generate_cmd, check=True)
     print(f'動画を保存しました: {video_path}')
-
-    shutil.rmtree(temp_img_dir)
 
     end_time = datetime.datetime.now()
     print(f"実行終了: {end_time.strftime('%Y-%m-%d %H:%M:%S')}")
