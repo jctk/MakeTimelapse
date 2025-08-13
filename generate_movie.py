@@ -87,7 +87,7 @@ def create_video_with_ffmpeg(input_dir, output_file, fps=10, crf=23, caption=Fal
                 output_path = os.path.join(temp_dir, f"frame_{i:04d}.png")
                 cv2.imwrite(output_path, frame)
             except Exception as e:
-                print(f"警告: {image_name} の読み込みに失敗しました。スキップします。理由: {e}")
+                print(f"警告: {image_name} の読み込みに失敗しました。スキップします。理由: {e}", flush=True)
                 continue
 
         # FFmpeg コマンドで動画生成
@@ -102,7 +102,7 @@ def create_video_with_ffmpeg(input_dir, output_file, fps=10, crf=23, caption=Fal
             output_file
         ]
         subprocess.run(ffmpeg_cmd, check=True)
-        print(f"動画ファイルが生成されました: {output_file}")
+        print(f"動画ファイルが生成されました: {output_file}", flush=True)
 
 # メイン関数
 if __name__ == "__main__":
@@ -117,9 +117,9 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    print("指定されたオプション:")
+    print("指定されたオプション:", flush=True)
     for arg in vars(args):
-        print(f"  {arg}: {getattr(args, arg)}")
+        print(f"  {arg}: {getattr(args, arg)}", flush=True)
 
     create_video_with_ffmpeg(
         args.input_dir,

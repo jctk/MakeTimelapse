@@ -148,7 +148,7 @@ def process_image(f):
     max_disp = np.max(magnitude)
     std_disp = np.std(magnitude)
 
-    print(f"変位量:{os.path.basename(f)} - 平均: {mean_disp:.4f}, 最大: {max_disp:.4f}, 標準偏差: {std_disp:.4f}")
+    print(f"変位量:{os.path.basename(f)} - 平均: {mean_disp:.4f}, 最大: {max_disp:.4f}, 標準偏差: {std_disp:.4f}", flush=True)
 
     resampler = sitk.ResampleImageFilter()
     resampler.SetReferenceImage(ref_img_sitk)
@@ -185,11 +185,11 @@ def process_image(f):
 # メイン処理
 if __name__ == "__main__":
     start_time = datetime.datetime.now()
-    print(f"実行開始: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"実行開始: {start_time.strftime('%Y-%m-%d %H:%M:%S')}", flush=True)
 
-    print("指定されたオプション:")
+    print("指定されたオプション:", flush=True)
     for arg in vars(args):
-        print(f"  {arg}: {getattr(args, arg)}")
+        print(f"  {arg}: {getattr(args, arg)}", flush=True)
 
     def get_next_movie_filename(movie_dir, base='timelapse', ext='.mp4'):
         idx = 1
@@ -206,7 +206,7 @@ if __name__ == "__main__":
             results = list(executor.map(process_image, input_files))
             aligned_imgs.extend(results)
     except KeyboardInterrupt:
-        print("処理を中断しました。")
+        print("処理を中断しました。", flush=True)
         exit(1)
 
     if args.movie:
@@ -228,11 +228,11 @@ if __name__ == "__main__":
         if args.caption_re:
             generate_cmd += ['--caption_re'] + args.caption_re
 
-        print("generate_movie.py による動画生成を開始します...")
+        print("generate_movie.py による動画生成を開始します...", flush=True)
         subprocess.run(generate_cmd, check=True)
-        print(f'動画を保存しました: {video_path}')
+        print(f'動画を保存しました: {video_path}', flush=True)
 
     end_time = datetime.datetime.now()
-    print(f"実行終了: {end_time.strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"実行終了: {end_time.strftime('%Y-%m-%d %H:%M:%S')}", flush=True)
     elapsed_time = end_time - start_time
-    print(f"実行時間: {str(elapsed_time)}")
+    print(f"実行時間: {str(elapsed_time)}", flush=True)
