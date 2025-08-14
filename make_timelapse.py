@@ -100,6 +100,7 @@ def process_image(f):
 
     print(f"処理中: {os.path.basename(f)}", flush=True)
 
+    # 入力画像の読み込みとリサンプリング
     ext = os.path.splitext(f)[1].lower()
     if ext in ['.fits', '.fit']:
         moving_image = fits_to_sitk_float32(f)
@@ -111,6 +112,7 @@ def process_image(f):
     else:
         raise ValueError(f"対応していないファイル形式です: {ext}")
 
+    # 画像のリサンプリングと位置合わせ
     initial_transform = sitk.CenteredTransformInitializer(
         ref_img_sitk,
         moving_image,
@@ -126,21 +128,25 @@ def process_image(f):
     )
     moving_image = moving_resampled
 
+    # サイズが異なる場合はリサンプリング
     if moving_image.GetSize() != ref_img_sitk.GetSize():
         moving_image = sitk.Resample(moving_image, ref_img_sitk)
 
+    # ヒストグラムマッチング
     matcher = sitk.HistogramMatchingImageFilter()
     matcher.SetNumberOfHistogramLevels(65536)
     matcher.SetNumberOfMatchPoints(10)
     matcher.ThresholdAtMeanIntensityOn()
     moving_image = matcher.Execute(moving_image, ref_img_sitk)
 
+    # Demons Registration
     if args.multiscale:
         transform = multi_resolution_demons(ref_img_sitk, moving_image, args.iterations, args.stddev)
     else:
         transform = single_resolution_demons(ref_img_sitk, moving_image, args.iterations, args.stddev)
     displacement_field = transform.GetDisplacementField()
 
+    # 変位量の計算
     disp_np = sitk.GetArrayFromImage(displacement_field)
     magnitude = np.linalg.norm(disp_np, axis=-1)
 
@@ -148,8 +154,9 @@ def process_image(f):
     max_disp = np.max(magnitude)
     std_disp = np.std(magnitude)
 
-    print(f"変位量:{os.path.basename(f)} - 平均: {mean_disp:.4f}, 最大: {max_disp:.4f}, 標準偏差: {std_disp:.4f}", flush=True)
+    print(f"変位量: {os.path.basename(f)} - 平均: {mean_disp:.4f}, 最大: {max_disp:.4f}, 標準偏差: {std_disp:.4f}", flush=True)
 
+    # 位置合わせ後の画像を保存
     resampler = sitk.ResampleImageFilter()
     resampler.SetReferenceImage(ref_img_sitk)
     resampler.SetInterpolator(sitk.sitkLinear)
@@ -158,6 +165,7 @@ def process_image(f):
     aligned_sitk = resampler.Execute(moving_image)
     aligned_np = sitk.GetArrayFromImage(aligned_sitk)
 
+    # 画像の正規化と保存
     img_min = np.min(aligned_np)
     img_max = np.max(aligned_np)
     if img_max > img_min:
@@ -191,6 +199,7 @@ if __name__ == "__main__":
     for arg in vars(args):
         print(f"  {arg}: {getattr(args, arg)}", flush=True)
 
+    # 入力ファイルの存在確認
     def get_next_movie_filename(movie_dir, base='timelapse', ext='.mp4'):
         idx = 1
         while True:
@@ -200,6 +209,7 @@ if __name__ == "__main__":
                 return fpath
             idx += 1
 
+    # 入力画像の存在確認
     aligned_imgs = []
     try:
         with concurrent.futures.ProcessPoolExecutor(max_workers=args.workers) as executor:
@@ -210,6 +220,7 @@ if __name__ == "__main__":
         exit(1)
 
     if args.movie:
+        # 動画の出力ファイル名が指定されている場合
         video_path = os.path.abspath(args.movie) if args.movie else get_next_movie_filename(movie_dir)
 
         # generate_movie.py を呼び出して動画生成
@@ -223,6 +234,7 @@ if __name__ == "__main__":
             '--fps', str(args.fps),
             '--crf', str(args.crf)
         ]
+        # オプションの追加
         if args.caption:
             generate_cmd += ['--caption']
         if args.caption_re:
