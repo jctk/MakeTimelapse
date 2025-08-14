@@ -35,7 +35,6 @@ MakeTimelapse は、JSol'Exの画像ファイルからタイムラプス動画�
 
 3. スクリプトの展開
     - スクリプトを clone する。
-    - サンプル画像も clone される。
 
     ```PowerShell
     PS> git clone https://github.com/jctk/MakeTimelapse.git
@@ -44,7 +43,23 @@ MakeTimelapse は、JSol'Exの画像ファイルからタイムラプス動画�
 
 ## ディレクトリ
 
-- To-Do: *****
+- リポジトリに登録されているフォルダー
+
+```Text
+MAKETIMELAPSE       プロジェクトのルートフォルダ。実利用するスクリプトを保存
+├─.vscode           vscode用設定
+├─samples           各種サンプルデータ用フォルダ
+│  ├─10_simple      単純な画像による検証用
+│  │  └─input
+│  ├─20_sun_half    小さめの太陽の画像による検証用(JSol'Ex Geometory corrected)
+│  │  └─input
+│  ├─30_sun_full_autostretch    大きい太陽の画像による検証用(JSol'Ex Geometory corrected(processed))
+│  │  └─input
+│  ├─40_sun_full_disk   大きい太陽の画像による検証用(JSol'Ex Geometory corrected)
+│  │  └─input
+│  └─90_postprocess 後処理用素材(Shotcutで使用するファイルなど)
+└─tools             検証などで使用する一括処理用ツール
+```
 
 ## 実行手順
 
@@ -52,24 +67,23 @@ MakeTimelapse は、JSol'Exの画像ファイルからタイムラプス動画�
 1. JSol'ExのBatchモードで画像を出力
     - 確認済みの主な条件
         - Process Parameter
-            - [x] Autocorrect P angle
-            - [x] or [ ] Rescale to full resolution (allow oversampling)
+            - Autocorrect P angle: ON
+            - Rescale to full resolution (allow oversampling): ON or OFF
         - Miscellaneous
-            - [x] Assume mono imamges
-            - [x] Generate FITS files
-        - Custom process: Image selection
-            - [x] Geometry corrected iamge
-            - [x] Geometry corrected iamge (processed)
+            - Assume mono imamges: ON
+            - Generate FITS files: ON
+        - Custom process: Image selection ※以下いずれの画像も可
+            - Geometry corrected iamge: ON
+            - Geometry corrected iamge (processed): ON
 1. make_timelapse.py を実行、複数の画像の位置合わせと動画の生成
     - JSol'Ex で生成した画像から位置合わせに使用する基準画像を選択する。真円に近い、表面が緻密、歪みが少ない、などの条件に合う画像が望ましい。
     - 画像サイズは一致しているのが望ましい。一致していない場合も処理はできるが、太陽のサイズが均一になるようにトリミングされているのがよい。
     - 位置合わせが合わない場合、位置合わせ後の画像を入力として再度位置合わせを行うことも可
+    - make_timelapse.py のフロントエンドGUIの make_timelapse_gui.py の利用可
 1. （任意）gemerate_movie.py の実行
     - make_timelapse.py が出力した位置合わせ画像を元に動画の作成が可能
 
 ## 各コマンドの説明
-
-- To-Do: *****
 
 ### make_timelapse.py
 
@@ -101,9 +115,15 @@ options:
                         ファイル名の置換（正規表現）: PATTERN を REPLACEMENT に置換
 ```
 
+### make_timelapse_gui.py
+
+- make_timelapse.py のフロントエンドとなる gui
+
 ### gemerate_movie.py
 
-- To-Do: *****
+- 画像（PNG, FITS）から FFmpeg を使って動画を生成する。
+- 通常このスクリプトは使用しない。make_timelapse.py で位置合わせ後に動画の生成も行うため。
+- make_timelapse.py で画像を選定しての位置補正を再度行った場合に、再実行なしと再実行したファイルを一つのフォルダーに集めてからこのスクリプトを用いて動画を作成する。
 
 ```PowerShell
 PS MakeTimelapse> python .\generate_movie.py --help
@@ -126,7 +146,7 @@ options:
 
 ### nomalize_image.py
 
-- To-Do: *****
+- このスクリプトは基本的に使用しない。make_timelapse.py で基準画像に合わせたヒストグラムの調整を行うので必要がない。
 
 ```PowerShell
 PS MakeTimelapse> python .\normalize_images.py --help
@@ -143,6 +163,36 @@ options:
                         Path to the output directory to save processed images
 ```
 
-## 仕組み
+## 仕組み - マルチスケール位置合わせ
 
-- To-Do: *****
+- 以下は make_timelapse.py のオプション --multiscale を実現する `multi_resolution_demons` 関数の仕組み
+
+- `multi_resolution_demons` 関数は、画像の位置合わせ（レジストレーション）を高精度かつ安定的に行うために、**マルチスケール（多段階）処理**を用いた Demons アルゴリズムの実装である。画像の解像度を段階的に変えながら変位場（displacement field）を更新することで、ノイズの影響を抑えつつ、より滑らかで正確な位置合わせを実現する。
+
+### 処理の流れ
+
+1. **初期変位場の作成**  
+   基準画像（`fixed`）と同じサイズ・情報を持つ初期の変位場（`initial_field`）を作成する。これは後の各スケールでの変形のベースとなる。
+
+2. **スケールごとの処理**  
+   以下の3段階の縮小率（shrink factor）で画像を処理する：
+
+   - 4倍縮小（粗いスケール）
+   - 2倍縮小（中間スケール）
+   - 元のサイズ（細かいスケール）
+
+   各スケールでは以下の処理を行う：
+
+   - 基準画像と移動画像を指定の縮小率でリサンプリング（`sitk.Shrink`）
+   - 変位場も同様にリサンプリング
+   - `FastSymmetricForcesDemonsRegistrationFilter` を用いて変位場を更新
+   - 更新された変位場を次のスケールにリサンプリングして引き継ぐ
+
+3. **最終変形の適用**  
+   最終的に得られた変位場を用いて `DisplacementFieldTransform` を作成し、移動画像に対して位置合わせを行う。
+
+### 特徴と利点
+
+- 粗いスケールから始めることで大きな構造の整合性を確保し、細かいスケールで微細な調整を行うため、**局所的なノイズや誤差の影響を軽減**できる。
+- 各スケールでの反復回数は、全体の反復回数に対して割合で指定されており、**効率的な処理**が可能である。
+- `FastSymmetricForcesDemonsRegistrationFilter` を使用することで、通常の Demons よりも**高速かつ安定した変形推定**が可能である。

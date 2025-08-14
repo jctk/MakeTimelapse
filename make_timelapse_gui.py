@@ -7,8 +7,8 @@ import threading
 import re
 import sys
 
-CONFIG_FILE = "timelapse_config.json"
-UI_FILE = "timelapse_ui.json"
+CONFIG_FILE = "make_timelapse_gui_config.json"
+UI_FILE = "make_timelapse_gui_ui.json"
 
 def load_config():
     if os.path.exists(CONFIG_FILE):

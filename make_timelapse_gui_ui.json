@@ -1,0 +1,99 @@
+{
+  "fields": [
+    {
+      "name": "ref",
+      "label": "Reference Image",
+      "type": "file",
+      "row": 0
+    },
+    {
+      "name": "input_dir",
+      "label": "Input Directory",
+      "type": "folder",
+      "row": 1
+    },
+    {
+      "name": "aligned_dir",
+      "label": "Aligned Directory",
+      "type": "folder",
+      "row": 2
+    },
+    {
+      "name": "movie",
+      "label": "Movie File",
+      "type": "file",
+      "row": 3
+    },
+    {
+      "name": "iterations",
+      "label": "Iterations",
+      "type": "spinbox",
+      "min": 0,
+      "max": 9999,
+      "row": 4
+    },
+    {
+      "name": "stddev",
+      "label": "Stddev",
+      "type": "entry",
+      "min": 0,
+      "max": 9999,
+      "width": 10,
+      "row": 5
+    },
+    {
+      "name": "workers",
+      "label": "Workers",
+      "type": "spinbox",
+      "min": 1,
+      "max": 64,
+      "row": 6
+    },
+    {
+      "name": "crf",
+      "label": "CRF",
+      "type": "spinbox",
+      "min": 1,
+      "max": 50,
+      "row": 7
+    },
+    {
+      "name": "fps",
+      "label": "FPS",
+      "type": "spinbox",
+      "min": 1,
+      "max": 120,
+      "row": 8
+    },
+    {
+      "name": "fast",
+      "label": "Use Fast",
+      "type": "check",
+      "row": 9
+    },
+    {
+      "name": "multiscale",
+      "label": "Use Multiscale",
+      "type": "check",
+      "row": 10
+    },
+    {
+      "name": "caption",
+      "label": "Show Caption",
+      "type": "check",
+      "row": 11
+    },
+    {
+      "name": "caption_re_pattern",
+      "label": "Caption RE Pattern",
+      "type": "entry",
+      "row": 12
+    },
+    {
+      "name": "caption_re_replacement",
+      "label": "Caption RE Replacement",
+      "type": "entry",
+      "row": 13
+    }
+  ]
+}
