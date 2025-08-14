@@ -8,6 +8,7 @@ import SimpleITK as sitk
 import concurrent.futures
 import datetime
 import subprocess
+from scipy.ndimage import zoom
 
 # FITSファイルをSimpleITKのfloat32画像に変換する関数
 def fits_to_sitk_float32(path):
@@ -98,6 +99,47 @@ def process_image(f):
         transform = sitk.DisplacementFieldTransform(initial_field)
         return transform
 
+    def resize_sitk_image(input_image: sitk.Image, new_size: tuple) -> sitk.Image:
+        """
+        SimpleITK画像を受け取り、指定されたサイズにNumPy配列から拡大縮小を行い、
+        リサイズ後のSimpleITK画像を返す関数。
+
+        Parameters:
+        - input_image: SimpleITK.Image
+            元のSimpleITK画像
+        - new_size: tuple or list of int
+            出力画像のサイズ (幅, 高さ)
+
+        Returns:
+        - SimpleITK.Image
+            サイズ変更されたSimpleITK画像
+        """
+
+        # SimpleITK画像をNumPy配列に変換
+        img_array = sitk.GetArrayFromImage(input_image)  
+        # SimpleITKは(z,y,x)順、NumPyもデフォルトは(z,y,x)なのでそのままでOK
+
+        # 元画像のサイズ（z,y,x）
+        original_size = img_array.shape
+        
+        # ここでは、new_sizeをSimpleITKのGetSize (x,y)の順と仮定
+        if len(new_size) == 2:
+            # 2D画像の場合
+            target_size = (new_size[1], new_size[0])
+        else:
+            raise ValueError("new_size must be 2 elements tuple/list")
+        
+        # ズーム率 = 新サイズ / 元サイズ
+        zoom_factors = [t / o for t, o in zip(target_size, original_size)]
+
+        # NumPy配列をズーム（補間は線形補間のorder=1）
+        resized_array = zoom(img_array, zoom=zoom_factors, order=3)
+
+        # NumPy配列からSimpleITK画像に戻す
+        resized_image = sitk.GetImageFromArray(resized_array)
+
+        return resized_image
+
     print(f"処理中: {os.path.basename(f)}", flush=True)
 
     # 入力画像の読み込みとリサンプリング
@@ -112,25 +154,9 @@ def process_image(f):
     else:
         raise ValueError(f"対応していないファイル形式です: {ext}")
 
-    # 画像のリサンプリングと位置合わせ
-    initial_transform = sitk.CenteredTransformInitializer(
-        ref_img_sitk,
-        moving_image,
-        sitk.Euler2DTransform(),
-        sitk.CenteredTransformInitializerFilter.GEOMETRY
-    )
-    moving_resampled = sitk.Resample(
-        moving_image,
-        ref_img_sitk,
-        initial_transform,
-        sitk.sitkLinear,
-        0.0
-    )
-    moving_image = moving_resampled
-
     # サイズが異なる場合はリサンプリング
     if moving_image.GetSize() != ref_img_sitk.GetSize():
-        moving_image = sitk.Resample(moving_image, ref_img_sitk)
+        moving_image = resize_sitk_image(moving_image, ref_img_sitk.GetSize())
 
     # ヒストグラムマッチング
     matcher = sitk.HistogramMatchingImageFilter()
