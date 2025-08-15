@@ -2,6 +2,7 @@ import json
 import os
 import subprocess
 import threading
+import signal
 import re
 import sys
 
@@ -41,6 +42,8 @@ class TimelapseGUI(tk.Tk):
         self.title("Make Timelapse")
         self.protocol("WM_DELETE_WINDOW", self.on_close)
         self.process = None
+        # flag to stop output printing when Stop is requested
+        self._stop_requested = False
         self.config_data = load_config()
         self.widgets = {}
         self.build_ui()
@@ -59,11 +62,41 @@ class TimelapseGUI(tk.Tk):
         main_frame.pack(fill="both", expand=True, padx=10, pady=10)
 
         for item in ui_layout.get("fields", []):
-            label = ttk.Label(main_frame, text=item["label"])
-            label.grid(row=item["row"], column=0, sticky="w", pady=2)
-
             widget_type = item["type"]
             name = item["name"]
+
+            # render left-side label for normal fields (not heading labels, buttons, or checkboxes)
+            # checkboxes will render their own label to the right of the checkbox inside the same column
+            if widget_type not in ("label", "button", "check"):
+                left_lbl = ttk.Label(main_frame, text=item.get("label", ""))
+                left_lbl.grid(row=item["row"], column=0, sticky="w", pady=2)
+
+            if widget_type == "label":
+                # If label text is empty, create a fixed-height spacer.
+                label_text = item.get("label", "")
+                if not label_text:
+                    spacer_height = item.get("height", 10)
+                    spacer = ttk.Frame(main_frame, height=spacer_height)
+                    spacer.grid(row=item["row"], column=0, columnspan=3, sticky="we", pady=2)
+                    # prevent the frame from shrinking to 0 height
+                    try:
+                        spacer.grid_propagate(False)
+                    except Exception:
+                        pass
+                    continue
+
+                # Render visible labels as bold headings
+                try:
+                    if hasattr(tk, "font") and hasattr(tk.font, "Font"):
+                        bold_font = tk.font.Font(weight="bold")
+                        lbl = ttk.Label(main_frame, text=label_text, font=bold_font)
+                    else:
+                        lbl = ttk.Label(main_frame, text=label_text, font=("TkDefaultFont", 10, "bold"))
+                except Exception:
+                    lbl = ttk.Label(main_frame, text=label_text)
+                lbl.grid(row=item["row"], column=0, columnspan=3, sticky="w", pady=2)
+                # don't store as interactive widget
+                continue
 
             if widget_type == "entry":
                 entry = ttk.Entry(main_frame, width=item.get("width", 40))
@@ -76,34 +109,54 @@ class TimelapseGUI(tk.Tk):
                 self.widgets[name] = ("spinbox", spin)
             elif widget_type == "check":
                 var = tk.BooleanVar()
-                check = ttk.Checkbutton(main_frame, variable=var)
-                check.grid(row=item["row"], column=1, sticky="w", pady=2)
+                # place checkbox in column 0 and set label via Checkbutton's text argument
+                check = ttk.Checkbutton(main_frame, variable=var, text=item.get("label", ""))
+                check.grid(row=item["row"], column=0, sticky="w", pady=2)
                 self.widgets[name] = ("check", var)
             elif widget_type == "file":
                 entry = ttk.Entry(main_frame, width=40)
                 entry.grid(row=item["row"], column=1, sticky="ew", pady=2)
-                btn = ttk.Button(main_frame, text="Browse", command=lambda e=entry: self.browse_file(e))
-                btn.grid(row=item["row"], column=2, padx=5)
                 self.widgets[name] = ("file", entry)
             elif widget_type == "folder":
                 entry = ttk.Entry(main_frame, width=40)
                 entry.grid(row=item["row"], column=1, sticky="ew", pady=2)
-                btn = ttk.Button(main_frame, text="Browse", command=lambda e=entry: self.browse_folder(e))
-                btn.grid(row=item["row"], column=2, padx=5)
                 self.widgets[name] = ("folder", entry)
-
-        # Buttons
-        btn_frame = ttk.Frame(main_frame)
-        btn_frame.grid(row=100, column=0, columnspan=3, pady=10)
-
-        run_btn = ttk.Button(btn_frame, text="Run", command=self.run_script)
-        run_btn.pack(side="left", padx=5)
-
-        stop_btn = ttk.Button(btn_frame, text="Stop", command=self.stop_script)
-        stop_btn.pack(side="left", padx=5)
-
-        self.close_btn = ttk.Button(btn_frame, text="Close", command=self.on_close)
-        self.close_btn.pack(side="left", padx=5)
+            elif widget_type == "button":
+                # place button at specified column (default 1)
+                col = item.get("col", 1)
+                action = item.get("action")
+                target = item.get("target")
+                btn = ttk.Button(main_frame, text=item.get("label", "Button"))
+                btn.grid(row=item["row"], column=col, padx=5)
+                # wire actions
+                if action == "browse_file" and target:
+                    # button should open file dialog and set target entry
+                    def make_cmd(t=target):
+                        def cmd():
+                            entry_pair = self.widgets.get(t)
+                            if entry_pair:
+                                _, e = entry_pair
+                                self.browse_file(e)
+                        return cmd
+                    btn.config(command=make_cmd())
+                elif action == "browse_folder" and target:
+                    def make_cmd2(t=target):
+                        def cmd():
+                            entry_pair = self.widgets.get(t)
+                            if entry_pair:
+                                _, e = entry_pair
+                                self.browse_folder(e)
+                        return cmd
+                    btn.config(command=make_cmd2())
+                elif action == "run":
+                    btn.config(command=self.run_script)
+                elif action == "stop":
+                    btn.config(command=self.stop_script)
+                elif action == "close":
+                    btn.config(command=self.on_close)
+                # store button if needed
+                self.widgets[name] = ("button", btn)
+    # previously the Run/Stop/Close were a fixed block; now they are defined via UI JSON
 
         # Output Text with vertical scrollbar
         text_frame = ttk.Frame(main_frame)
@@ -205,25 +258,87 @@ class TimelapseGUI(tk.Tk):
             cmd.extend(["--caption_re", pattern, replacement])
 
         self.output_text.delete("1.0", tk.END)
-        self.close_btn.config(state="disabled")
-        self.process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        close_pair = self.widgets.get("close")
+        if close_pair:
+            try:
+                close_pair[1].config(state="disabled")
+            except Exception:
+                pass
+        # disable run button to prevent re-entry
+        run_pair = self.widgets.get("run")
+        if run_pair:
+            try:
+                run_pair[1].config(state="disabled")
+            except Exception:
+                pass
+        # clear stop flag for new run
+        self._stop_requested = False
+        # On Windows, create new process group to make termination more reliable
+        popen_kwargs = dict(stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        if os.name == 'nt':
+            popen_kwargs['creationflags'] = subprocess.CREATE_NEW_PROCESS_GROUP
+        self.process = subprocess.Popen(cmd, **popen_kwargs)
 
         def read_output():
             for line in self.process.stdout:
+                # if stop was requested, stop printing further lines
+                if getattr(self, '_stop_requested', False):
+                    break
                 self.output_text.insert(tk.END, line)
                 self.output_text.see(tk.END)
             self.process = None
-            self.close_btn.config(state="normal")
+            # ensure close button is re-enabled
+            close_pair = self.widgets.get("close")
+            run_pair = self.widgets.get("run")
+            if close_pair:
+                try:
+                    close_pair[1].config(state="normal")
+                except Exception:
+                    pass
+            if run_pair:
+                try:
+                    run_pair[1].config(state="normal")
+                except Exception:
+                    pass
 
         threading.Thread(target=read_output, daemon=True).start()
 
     def stop_script(self):
+        # indicate we want to stop printing further output
+        self._stop_requested = True
         if self.process:
-            self.process.terminate()
-            self.process = None
-            self.output_text.insert(tk.END, "\nProcess terminated.\n")
-            self.output_text.see(tk.END)
-            self.close_btn.config(state="normal")
+            try:
+                self.process.terminate()
+                try:
+                    self.process.wait(timeout=2)
+                except Exception:
+                    # still alive -> force kill
+                    try:
+                        self.process.kill()
+                        self.process.wait(timeout=2)
+                    except Exception:
+                        pass
+            except Exception:
+                try:
+                    self.process.kill()
+                except Exception:
+                    pass
+            finally:
+                self.process = None
+                self.output_text.insert(tk.END, "\nProcess terminated.\n")
+                self.output_text.see(tk.END)
+                close_pair = self.widgets.get("close")
+                if close_pair:
+                    try:
+                        close_pair[1].config(state="normal")
+                    except Exception:
+                        pass
+                run_pair = self.widgets.get("run")
+                if run_pair:
+                    try:
+                        run_pair[1].config(state="normal")
+                    except Exception:
+                        pass
 
     def on_close(self):
         inputs = self.collect_inputs()

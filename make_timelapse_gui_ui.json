@@ -1,28 +1,70 @@
 {
   "fields": [
     {
+      "name": "lbl_registration",
+      "label": "IMAGE REGISTRATION",
+      "type": "label",
+      "row": 0
+    },
+    {
       "name": "ref",
       "label": "Reference Image",
       "type": "file",
-      "row": 0
+      "row": 1
+    },
+    {
+      "name": "browse_ref",
+      "label": "Browse",
+      "type": "button",
+      "action": "browse_file",
+      "target": "ref",
+      "row": 1,
+      "col": 2
     },
     {
       "name": "input_dir",
       "label": "Input Directory",
       "type": "folder",
-      "row": 1
+      "row": 2
+    },
+    {
+      "name": "browse_input",
+      "label": "Browse",
+      "type": "button",
+      "action": "browse_folder",
+      "target": "input_dir",
+      "row": 2,
+      "col": 2
     },
     {
       "name": "aligned_dir",
       "label": "Aligned Directory",
       "type": "folder",
-      "row": 2
+      "row": 3
+    },
+    {
+      "name": "browse_aligned",
+      "label": "Browse",
+      "type": "button",
+      "action": "browse_folder",
+      "target": "aligned_dir",
+      "row": 3,
+      "col": 2
     },
     {
       "name": "movie",
       "label": "Movie File",
       "type": "file",
-      "row": 3
+      "row": 4
+    },
+    {
+      "name": "browse_movie",
+      "label": "Browse",
+      "type": "button",
+      "action": "browse_file",
+      "target": "movie",
+      "row": 4,
+      "col": 2
     },
     {
       "name": "iterations",
@@ -30,7 +72,7 @@
       "type": "spinbox",
       "min": 0,
       "max": 9999,
-      "row": 4
+      "row": 5
     },
     {
       "name": "stddev",
@@ -39,7 +81,7 @@
       "min": 0,
       "max": 9999,
       "width": 10,
-      "row": 5
+      "row": 6
     },
     {
       "name": "workers",
@@ -47,7 +89,7 @@
       "type": "spinbox",
       "min": 1,
       "max": 64,
-      "row": 6
+      "row": 7
     },
     {
       "name": "crf",
@@ -55,7 +97,7 @@
       "type": "spinbox",
       "min": 1,
       "max": 50,
-      "row": 7
+      "row": 8
     },
     {
       "name": "fps",
@@ -63,37 +105,73 @@
       "type": "spinbox",
       "min": 1,
       "max": 120,
-      "row": 8
+      "row": 9
     },
     {
       "name": "fast",
       "label": "Use Fast",
       "type": "check",
-      "row": 9
+      "row": 10
     },
     {
       "name": "multiscale",
       "label": "Use Multiscale",
       "type": "check",
-      "row": 10
+      "row": 11
+    },
+    {
+      "name": "spacer_after_multiscale",
+      "label": "",
+      "type": "label",
+      "row": 12
+    },
+    {
+      "name": "run",
+      "label": "Run",
+      "type": "button",
+      "action": "run",
+      "row": 100,
+      "col": 0
+    },
+    {
+      "name": "stop",
+      "label": "Stop",
+      "type": "button",
+      "action": "stop",
+      "row": 100,
+      "col": 1
+    },
+    {
+      "name": "close",
+      "label": "Close",
+      "type": "button",
+      "action": "close",
+      "row": 100,
+      "col": 2
+    },
+    {
+      "name": "lbl_generate_movie",
+      "label": "GENERATE MOVIE",
+      "type": "label",
+      "row": 13
     },
     {
       "name": "caption",
       "label": "Show Caption",
       "type": "check",
-      "row": 11
+      "row": 14
     },
     {
       "name": "caption_re_pattern",
       "label": "Caption RE Pattern",
       "type": "entry",
-      "row": 12
+      "row": 15
     },
     {
       "name": "caption_re_replacement",
       "label": "Caption RE Replacement",
       "type": "entry",
-      "row": 13
+      "row": 16
     }
   ]
 }
