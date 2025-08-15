@@ -1,11 +1,19 @@
 import json
 import os
-import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
 import subprocess
 import threading
 import re
 import sys
+
+# Prefer tkxui if available, otherwise fall back to tkinter.
+try:
+    import tkxui as tk
+    from tkxui import ttk, filedialog, messagebox
+    USING_TKXUI = True
+except Exception:
+    import tkinter as tk
+    from tkinter import ttk, filedialog, messagebox
+    USING_TKXUI = False
 
 CONFIG_FILE = "make_timelapse_gui_config.json"
 UI_FILE = "make_timelapse_gui_ui.json"
@@ -30,7 +38,7 @@ def validate_regex(pattern):
 class TimelapseGUI(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("Make Timelapse GUI")
+        self.title("Make Timelapse")
         self.protocol("WM_DELETE_WINDOW", self.on_close)
         self.process = None
         self.config_data = load_config()
@@ -60,28 +68,29 @@ class TimelapseGUI(tk.Tk):
             if widget_type == "entry":
                 entry = ttk.Entry(main_frame, width=item.get("width", 40))
                 entry.grid(row=item["row"], column=1, sticky="w", pady=2)
-                self.widgets[name] = entry
+                # store as (type, widget) so we can handle tkxui/tk compatibility
+                self.widgets[name] = ("entry", entry)
             elif widget_type == "spinbox":
                 spin = ttk.Spinbox(main_frame, from_=item["min"], to=item["max"], width=10)
                 spin.grid(row=item["row"], column=1, sticky="w", pady=2)
-                self.widgets[name] = spin
+                self.widgets[name] = ("spinbox", spin)
             elif widget_type == "check":
                 var = tk.BooleanVar()
                 check = ttk.Checkbutton(main_frame, variable=var)
                 check.grid(row=item["row"], column=1, sticky="w", pady=2)
-                self.widgets[name] = var
+                self.widgets[name] = ("check", var)
             elif widget_type == "file":
                 entry = ttk.Entry(main_frame, width=40)
                 entry.grid(row=item["row"], column=1, sticky="ew", pady=2)
                 btn = ttk.Button(main_frame, text="Browse", command=lambda e=entry: self.browse_file(e))
                 btn.grid(row=item["row"], column=2, padx=5)
-                self.widgets[name] = entry
+                self.widgets[name] = ("file", entry)
             elif widget_type == "folder":
                 entry = ttk.Entry(main_frame, width=40)
                 entry.grid(row=item["row"], column=1, sticky="ew", pady=2)
                 btn = ttk.Button(main_frame, text="Browse", command=lambda e=entry: self.browse_folder(e))
                 btn.grid(row=item["row"], column=2, padx=5)
-                self.widgets[name] = entry
+                self.widgets[name] = ("folder", entry)
 
         # Buttons
         btn_frame = ttk.Frame(main_frame)
@@ -122,14 +131,22 @@ class TimelapseGUI(tk.Tk):
             entry.insert(0, foldername)
 
     def load_previous_values(self):
-        for key, widget in self.widgets.items():
+        for key, pair in self.widgets.items():
+            wtype, widget = pair
             if key in self.config_data:
                 value = self.config_data[key]
-                if isinstance(widget, ttk.Entry) or isinstance(widget, ttk.Spinbox):
-                    widget.delete(0, tk.END)
-                    widget.insert(0, value)
-                elif isinstance(widget, tk.BooleanVar):
-                    widget.set(value)
+                if wtype in ("entry", "spinbox", "file", "folder"):
+                    try:
+                        widget.delete(0, tk.END)
+                        widget.insert(0, value)
+                    except Exception:
+                        # fallback: ignore if widget API differs
+                        pass
+                elif wtype == "check":
+                    try:
+                        widget.set(bool(value))
+                    except Exception:
+                        pass
 
         # Restore window size
         width = self.config_data.get("window_width")
@@ -139,11 +156,18 @@ class TimelapseGUI(tk.Tk):
 
     def collect_inputs(self):
         inputs = {}
-        for key, widget in self.widgets.items():
-            if isinstance(widget, ttk.Entry) or isinstance(widget, ttk.Spinbox):
-                inputs[key] = widget.get()
-            elif isinstance(widget, tk.BooleanVar):
-                inputs[key] = widget.get()
+        for key, pair in self.widgets.items():
+            wtype, widget = pair
+            if wtype in ("entry", "spinbox", "file", "folder"):
+                try:
+                    inputs[key] = widget.get()
+                except Exception:
+                    inputs[key] = None
+            elif wtype == "check":
+                try:
+                    inputs[key] = bool(widget.get())
+                except Exception:
+                    inputs[key] = False
         return inputs
 
     def run_script(self):
