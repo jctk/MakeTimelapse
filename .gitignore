@@ -4,3 +4,7 @@ aligned*/
 *.mp4
 メモ.txt
 make_timelapse_gui_config.json
+# Ignore Python bytecode/cache and runtime logs
+__pycache__/
+*.pyc
+gui_stderr.log
