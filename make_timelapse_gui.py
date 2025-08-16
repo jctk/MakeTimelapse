@@ -98,9 +98,9 @@ class TimelapseGUI(tk.Tk):
             widget_type = item["type"]
             name = item["name"]
 
-            # render left-side label for normal fields (not heading labels, buttons, or checkboxes)
+            # render left-side label for normal fields (not heading labels, buttons, checkboxes, or frames)
             # checkboxes will render their own label to the right of the checkbox inside the same column
-            if widget_type not in ("label", "button", "check"):
+            if widget_type not in ("label", "button", "check", "frame"):
                 left_lbl = ttk.Label(main_frame, text=item.get("label", ""))
                 left_opts = grid_options(item, defaults={'column': 0, 'sticky': 'w', 'pady': 2})
                 left_lbl.grid(**left_opts)
@@ -163,13 +163,38 @@ class TimelapseGUI(tk.Tk):
                 entry.grid(**entry_opts)
                 self.widgets[name] = ("folder", entry)
             elif widget_type == "button":
-                # place button at specified column (default 1)
-                col = item.get("col", 1)
+                # place button either into a named parent frame (via pack) or at specified column (via grid)
                 action = item.get("action")
                 target = item.get("target")
-                btn = ttk.Button(main_frame, text=item.get("label", "Button"))
-                btn_opts = grid_options(item, defaults={'column': col, 'pady': 0, 'padx': 5})
-                btn.grid(**btn_opts)
+                parent_name = item.get("parent")
+                if parent_name:
+                    parent_pair = self.widgets.get(parent_name)
+                    if parent_pair and parent_pair[0] == "frame":
+                        parent_widget = parent_pair[1]
+                        btn = ttk.Button(parent_widget, text=item.get("label", "Button"))
+                        # pack options: side and anchor are accepted from JSON
+                        pack_side = item.get("pack_side", "left")
+                        pack_anchor = item.get("pack_anchor", None)
+                        pack_kwargs = {'side': pack_side}
+                        if pack_anchor:
+                            pack_kwargs['anchor'] = pack_anchor
+                        if 'padx' in item:
+                            pack_kwargs['padx'] = item.get('padx')
+                        if 'pady' in item:
+                            pack_kwargs['pady'] = item.get('pady')
+                        btn.pack(**pack_kwargs)
+                    else:
+                        # fallback to grid on main_frame if parent not found
+                        col = item.get("col", 1)
+                        btn = ttk.Button(main_frame, text=item.get("label", "Button"))
+                        btn_opts = grid_options(item, defaults={'column': col, 'pady': 0, 'padx': 5})
+                        btn.grid(**btn_opts)
+                else:
+                    # place button at specified column (default 1)
+                    col = item.get("col", 1)
+                    btn = ttk.Button(main_frame, text=item.get("label", "Button"))
+                    btn_opts = grid_options(item, defaults={'column': col, 'pady': 0, 'padx': 5})
+                    btn.grid(**btn_opts)
                 # wire actions
                 if action == "browse_file" and target:
                     # button should open file dialog and set target entry
@@ -198,6 +223,60 @@ class TimelapseGUI(tk.Tk):
                     btn.config(command=self.on_close)
                 # store button if needed
                 self.widgets[name] = ("button", btn)
+            elif widget_type == "frame":
+                # create a container frame that can be referenced by other widgets
+                parent_name = item.get('parent')
+                if parent_name:
+                    parent_pair = self.widgets.get(parent_name)
+                    if parent_pair and parent_pair[0] == 'frame':
+                        parent_widget = parent_pair[1]
+                        # apply fixed width/height only when provided
+                        fw = item.get('fixed_width')
+                        fh = item.get('fixed_height')
+                        frame_kwargs = {}
+                        if fw is not None:
+                            frame_kwargs['width'] = fw
+                        if fh is not None:
+                            frame_kwargs['height'] = fh
+                        frame = ttk.Frame(parent_widget, **frame_kwargs)
+                        # pack into parent frame
+                        pack_side = item.get('pack_side', None)
+                        pack_anchor = item.get('pack_anchor', None)
+                        pack_kwargs = {}
+                        if 'padx' in item:
+                            pack_kwargs['padx'] = item.get('padx')
+                        if 'pady' in item:
+                            pack_kwargs['pady'] = item.get('pady')
+
+                        # Special-case: center the button_group by adding expanding spacers
+                        if name == 'button_group':
+                            # left spacer expands
+                            left_spacer = ttk.Frame(parent_widget)
+                            left_spacer.pack(side='left', expand=True)
+                            # pack the group itself centered via anchor; use fixed width if provided
+                            frame.pack(side='left', anchor='center', **pack_kwargs)
+                            # if both width and height were provided, disable geometry propagation so frame keeps fixed size
+                            if fw is not None and fh is not None:
+                                try:
+                                    frame.pack_propagate(False)
+                                except Exception:
+                                    pass
+                            # right spacer expands
+                            right_spacer = ttk.Frame(parent_widget)
+                            right_spacer.pack(side='left', expand=True)
+                        else:
+                            if pack_side:
+                                pack_kwargs['side'] = pack_side
+                            if pack_anchor:
+                                pack_kwargs['anchor'] = pack_anchor
+                            frame.pack(**pack_kwargs)
+                        self.widgets[name] = ('frame', frame)
+                        continue
+                # default: grid into main_frame
+                frame = ttk.Frame(main_frame)
+                frame_opts = grid_options(item, defaults={'column': 0, 'columnspan': 1, 'sticky': 'w', 'pady': 0})
+                frame.grid(**frame_opts)
+                self.widgets[name] = ("frame", frame)
         # previously the Run/Stop/Close were a fixed block; now they are defined via UI JSON
 
         # Output Text with vertical scrollbar
@@ -207,7 +286,13 @@ class TimelapseGUI(tk.Tk):
         text_opts = grid_options(output_def, defaults={'row': 101, 'column': 0, 'columnspan': 3, 'sticky': 'nsew', 'pady': 5})
         text_frame.grid(**text_opts)
         main_frame.rowconfigure(101, weight=1)
-        main_frame.columnconfigure(1, weight=1)
+        # allow the three primary columns to expand so wide widgets/frames can center contents
+        try:
+            main_frame.columnconfigure(0, weight=1)
+            main_frame.columnconfigure(1, weight=1)
+            main_frame.columnconfigure(2, weight=1)
+        except Exception:
+            pass
 
         self.output_text = tk.Text(text_frame, height=15)
         self.output_text.pack(side="left", fill="both", expand=True)

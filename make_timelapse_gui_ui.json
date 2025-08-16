@@ -9,11 +9,11 @@
     {
       "name": "ref",
       "label": "Reference Image",
-  "type": "file",
-  "row": 1,
-  "sticky": "ew",
-  "padx": 4,
-  "pady": 2
+      "type": "file",
+      "row": 1,
+      "sticky": "ew",
+      "padx": 4,
+      "pady": 2
     },
     {
       "name": "browse_ref",
@@ -27,11 +27,11 @@
     {
       "name": "input_dir",
       "label": "Input Directory",
-  "type": "folder",
-  "row": 2,
-  "sticky": "ew",
-  "padx": 4,
-  "pady": 2
+      "type": "folder",
+      "row": 2,
+      "sticky": "ew",
+      "padx": 4,
+      "pady": 2
     },
     {
       "name": "browse_input",
@@ -45,11 +45,11 @@
     {
       "name": "aligned_dir",
       "label": "Aligned Directory",
-  "type": "folder",
-  "row": 3,
-  "sticky": "ew",
-  "padx": 4,
-  "pady": 2
+      "type": "folder",
+      "row": 3,
+      "sticky": "ew",
+      "padx": 4,
+      "pady": 2
     },
     {
       "name": "browse_aligned",
@@ -63,11 +63,11 @@
     {
       "name": "movie",
       "label": "Movie File",
-  "type": "file",
-  "row": 4,
-  "sticky": "ew",
-  "padx": 4,
-  "pady": 2
+      "type": "file",
+      "row": 4,
+      "sticky": "ew",
+      "padx": 4,
+      "pady": 2
     },
     {
       "name": "browse_movie",
@@ -84,10 +84,10 @@
       "type": "spinbox",
       "min": 0,
       "max": 9999,
-  "row": 5,
-  "sticky": "w",
-  "padx": 4,
-  "pady": 2
+      "row": 5,
+      "sticky": "w",
+      "padx": 4,
+      "pady": 2
     },
     {
       "name": "stddev",
@@ -96,10 +96,10 @@
       "min": 0,
       "max": 9999,
       "width": 10,
-  "row": 6,
-  "sticky": "w",
-  "padx": 4,
-  "pady": 2
+      "row": 6,
+      "sticky": "w",
+      "padx": 4,
+      "pady": 2
     },
     {
       "name": "workers",
@@ -107,10 +107,10 @@
       "type": "spinbox",
       "min": 1,
       "max": 64,
-  "row": 7,
-  "sticky": "w",
-  "padx": 4,
-  "pady": 2
+      "row": 7,
+      "sticky": "w",
+      "padx": 4,
+      "pady": 2
     },
     {
       "name": "crf",
@@ -118,10 +118,10 @@
       "type": "spinbox",
       "min": 1,
       "max": 50,
-  "row": 8,
-  "sticky": "w",
-  "padx": 4,
-  "pady": 2
+      "row": 8,
+      "sticky": "w",
+      "padx": 4,
+      "pady": 2
     },
     {
       "name": "fps",
@@ -129,26 +129,26 @@
       "type": "spinbox",
       "min": 1,
       "max": 120,
-  "row": 9,
-  "sticky": "w",
-  "padx": 4,
-  "pady": 2
+      "row": 9,
+      "sticky": "w",
+      "padx": 4,
+      "pady": 2
     },
     {
       "name": "fast",
       "label": "Use Fast",
       "type": "check",
-  "row": 10,
-  "padx": 2,
-  "pady": 2
+      "row": 10,
+      "padx": 2,
+      "pady": 2
     },
     {
       "name": "multiscale",
       "label": "Use Multiscale",
       "type": "check",
-  "row": 11,
-  "padx": 2,
-  "pady": 2
+      "row": 11,
+      "padx": 2,
+      "pady": 2
     },
     {
       "name": "spacer_after_multiscale",
@@ -157,37 +157,54 @@
       "row": 12
     },
     {
+      "name": "button_row",
+      "label": "",
+      "type": "frame",
+      "row": 100,
+      "column": 0,
+      "columnspan": 3,
+      "padx": 6,
+      "pady": 4,
+      "sticky": "ew"
+    },
+    {
+      "name": "button_group",
+      "label": "",
+      "type": "frame",
+  "parent": "button_row",
+  "pack_side": "top",
+  "pack_anchor": "center",
+  "fixed_width": 300
+    },
+    {
       "name": "run",
       "label": "Run",
       "type": "button",
       "action": "run",
-  "row": 100,
-  "col": 0,
-  "padx": 6,
-  "pady": 4,
-  "sticky": "w"
+      "parent": "button_group",
+      "pack_side": "left",
+      "padx": 6,
+      "pady": 4
     },
     {
       "name": "stop",
       "label": "Stop",
       "type": "button",
       "action": "stop",
-  "row": 100,
-  "col": 1,
-  "padx": 6,
-  "pady": 4,
-  "sticky": "w"
+      "parent": "button_group",
+      "pack_side": "left",
+      "padx": 6,
+      "pady": 4
     },
     {
       "name": "close",
       "label": "Close",
       "type": "button",
       "action": "close",
-  "row": 100,
-  "col": 2,
-  "padx": 6,
-  "pady": 4,
-  "sticky": "w"
+      "parent": "button_group",
+      "pack_side": "left",
+      "padx": 6,
+      "pady": 4
     },
     {
       "name": "lbl_generate_movie",
@@ -221,8 +238,7 @@
       "padx": 4,
       "pady": 2
     }
-  ]
-  ,
+  ],
   "output": {
     "row": 101,
     "column": 0,
