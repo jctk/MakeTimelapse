@@ -6,15 +6,8 @@ import signal
 import re
 import sys
 
-# Prefer tkxui if available, otherwise fall back to tkinter.
-try:
-    import tkxui as tk
-    from tkxui import ttk, filedialog, messagebox
-    USING_TKXUI = True
-except Exception:
-    import tkinter as tk
-    from tkinter import ttk, filedialog, messagebox
-    USING_TKXUI = False
+import tkinter as tk
+from tkinter import ttk, filedialog, messagebox
 
 CONFIG_FILE = "make_timelapse_gui_config.json"
 UI_FILE = "make_timelapse_gui_ui.json"
@@ -61,6 +54,46 @@ class TimelapseGUI(tk.Tk):
         main_frame = ttk.Frame(self)
         main_frame.pack(fill="both", expand=True, padx=10, pady=10)
 
+        # helper to produce grid option dict from UI item with sensible defaults
+        def grid_options(item, defaults=None):
+            if defaults is None:
+                defaults = {}
+            opts = {}
+            # required: row
+            opts['row'] = item.get('row', defaults.get('row', 0))
+            # column default may be supplied per-call
+            if 'col' in item:
+                opts['column'] = item['col']
+            elif 'column' in item:
+                opts['column'] = item['column']
+            elif 'column' in defaults:
+                opts['column'] = defaults['column']
+            # columnspan/rowspan
+            if 'columnspan' in item:
+                opts['columnspan'] = item['columnspan']
+            elif 'colspan' in item:
+                opts['columnspan'] = item['colspan']
+            elif 'columnspan' in defaults:
+                opts['columnspan'] = defaults['columnspan']
+            if 'rowspan' in item:
+                opts['rowspan'] = item['rowspan']
+            elif 'rowspan' in defaults:
+                opts['rowspan'] = defaults['rowspan']
+            # sticky/padx/pady
+            if 'sticky' in item:
+                opts['sticky'] = item['sticky']
+            elif 'sticky' in defaults:
+                opts['sticky'] = defaults['sticky']
+            if 'padx' in item:
+                opts['padx'] = item['padx']
+            elif 'padx' in defaults:
+                opts['padx'] = defaults['padx']
+            if 'pady' in item:
+                opts['pady'] = item['pady']
+            elif 'pady' in defaults:
+                opts['pady'] = defaults['pady']
+            return opts
+
         for item in ui_layout.get("fields", []):
             widget_type = item["type"]
             name = item["name"]
@@ -69,7 +102,8 @@ class TimelapseGUI(tk.Tk):
             # checkboxes will render their own label to the right of the checkbox inside the same column
             if widget_type not in ("label", "button", "check"):
                 left_lbl = ttk.Label(main_frame, text=item.get("label", ""))
-                left_lbl.grid(row=item["row"], column=0, sticky="w", pady=2)
+                left_opts = grid_options(item, defaults={'column': 0, 'sticky': 'w', 'pady': 2})
+                left_lbl.grid(**left_opts)
 
             if widget_type == "label":
                 # If label text is empty, create a fixed-height spacer.
@@ -77,7 +111,8 @@ class TimelapseGUI(tk.Tk):
                 if not label_text:
                     spacer_height = item.get("height", 10)
                     spacer = ttk.Frame(main_frame, height=spacer_height)
-                    spacer.grid(row=item["row"], column=0, columnspan=3, sticky="we", pady=2)
+                    spacer_opts = grid_options(item, defaults={'column': 0, 'columnspan': 3, 'sticky': 'we', 'pady': 2})
+                    spacer.grid(**spacer_opts)
                     # prevent the frame from shrinking to 0 height
                     try:
                         spacer.grid_propagate(False)
@@ -94,32 +129,38 @@ class TimelapseGUI(tk.Tk):
                         lbl = ttk.Label(main_frame, text=label_text, font=("TkDefaultFont", 10, "bold"))
                 except Exception:
                     lbl = ttk.Label(main_frame, text=label_text)
-                lbl.grid(row=item["row"], column=0, columnspan=3, sticky="w", pady=2)
+                lbl_opts = grid_options(item, defaults={'column': 0, 'columnspan': 3, 'sticky': 'w', 'pady': 2})
+                lbl.grid(**lbl_opts)
                 # don't store as interactive widget
                 continue
 
             if widget_type == "entry":
                 entry = ttk.Entry(main_frame, width=item.get("width", 40))
-                entry.grid(row=item["row"], column=1, sticky="w", pady=2)
+                entry_opts = grid_options(item, defaults={'column': 1, 'sticky': 'w', 'pady': 2})
+                entry.grid(**entry_opts)
                 # store as (type, widget) so we can handle tkxui/tk compatibility
                 self.widgets[name] = ("entry", entry)
             elif widget_type == "spinbox":
                 spin = ttk.Spinbox(main_frame, from_=item["min"], to=item["max"], width=10)
-                spin.grid(row=item["row"], column=1, sticky="w", pady=2)
+                spin_opts = grid_options(item, defaults={'column': 1, 'sticky': 'w', 'pady': 2})
+                spin.grid(**spin_opts)
                 self.widgets[name] = ("spinbox", spin)
             elif widget_type == "check":
                 var = tk.BooleanVar()
                 # place checkbox in column 0 and set label via Checkbutton's text argument
                 check = ttk.Checkbutton(main_frame, variable=var, text=item.get("label", ""))
-                check.grid(row=item["row"], column=0, sticky="w", pady=2)
+                check_opts = grid_options(item, defaults={'column': 0, 'sticky': 'w', 'pady': 2})
+                check.grid(**check_opts)
                 self.widgets[name] = ("check", var)
             elif widget_type == "file":
                 entry = ttk.Entry(main_frame, width=40)
-                entry.grid(row=item["row"], column=1, sticky="ew", pady=2)
+                entry_opts = grid_options(item, defaults={'column': 1, 'sticky': 'ew', 'pady': 2})
+                entry.grid(**entry_opts)
                 self.widgets[name] = ("file", entry)
             elif widget_type == "folder":
                 entry = ttk.Entry(main_frame, width=40)
-                entry.grid(row=item["row"], column=1, sticky="ew", pady=2)
+                entry_opts = grid_options(item, defaults={'column': 1, 'sticky': 'ew', 'pady': 2})
+                entry.grid(**entry_opts)
                 self.widgets[name] = ("folder", entry)
             elif widget_type == "button":
                 # place button at specified column (default 1)
@@ -127,7 +168,8 @@ class TimelapseGUI(tk.Tk):
                 action = item.get("action")
                 target = item.get("target")
                 btn = ttk.Button(main_frame, text=item.get("label", "Button"))
-                btn.grid(row=item["row"], column=col, padx=5)
+                btn_opts = grid_options(item, defaults={'column': col, 'pady': 0, 'padx': 5})
+                btn.grid(**btn_opts)
                 # wire actions
                 if action == "browse_file" and target:
                     # button should open file dialog and set target entry
@@ -156,11 +198,14 @@ class TimelapseGUI(tk.Tk):
                     btn.config(command=self.on_close)
                 # store button if needed
                 self.widgets[name] = ("button", btn)
-    # previously the Run/Stop/Close were a fixed block; now they are defined via UI JSON
+        # previously the Run/Stop/Close were a fixed block; now they are defined via UI JSON
 
         # Output Text with vertical scrollbar
         text_frame = ttk.Frame(main_frame)
-        text_frame.grid(row=101, column=0, columnspan=3, sticky="nsew", pady=5)
+        # allow overriding the output text grid via a top-level key in UI JSON
+        output_def = ui_layout.get('output') or {}
+        text_opts = grid_options(output_def, defaults={'row': 101, 'column': 0, 'columnspan': 3, 'sticky': 'nsew', 'pady': 5})
+        text_frame.grid(**text_opts)
         main_frame.rowconfigure(101, weight=1)
         main_frame.columnconfigure(1, weight=1)
 
