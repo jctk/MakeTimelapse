@@ -8,6 +8,7 @@ import sys
 
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
+import tkinter.font as tkfont
 
 CONFIG_FILE = "make_timelapse_gui_config.json"
 UI_FILE = "make_timelapse_gui_ui.json"
@@ -300,6 +301,45 @@ class TimelapseGUI(tk.Tk):
         scrollbar = ttk.Scrollbar(text_frame, orient="vertical", command=self.output_text.yview)
         scrollbar.pack(side="right", fill="y")
         self.output_text.config(yscrollcommand=scrollbar.set)
+
+        # Calculate and set minimum window size so that all widgets remain visible
+        # while allowing the output text area to shrink to two lines.
+        try:
+            # Ensure layout sizes are up-to-date
+            self.update_idletasks()
+
+            # Requested size of the whole window
+            req_w = self.winfo_reqwidth()
+            req_h = self.winfo_reqheight()
+
+            # Determine height of one text line (in pixels)
+            try:
+                text_font = tkfont.nametofont(self.output_text.cget("font"))
+            except Exception:
+                text_font = tkfont.Font()
+            line_h = text_font.metrics("linespace") or 16
+
+            # Current output widget height in lines (default set above)
+            try:
+                cur_lines = int(self.output_text.cget("height"))
+            except Exception:
+                cur_lines = 15
+
+            # Compute minimal height when output shrinks to 2 lines
+            shrink_pixels = max(0, (cur_lines - 2) * line_h)
+            min_h = max(100, req_h - shrink_pixels)
+
+            # Ensure a reasonable minimal width (at least the requested width)
+            min_w = max(200, req_w)
+
+            # Apply as window minimum size
+            try:
+                self.minsize(min_w, min_h)
+            except Exception:
+                # Some Tk platforms may not support minsize robustly; ignore if fails
+                pass
+        except Exception:
+            pass
 
     def browse_file(self, entry):
         filename = filedialog.askopenfilename()
