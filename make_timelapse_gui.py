@@ -298,6 +298,13 @@ class TimelapseGUI(tk.Tk):
         self.output_text = tk.Text(text_frame, height=15)
         self.output_text.pack(side="left", fill="both", expand=True)
 
+        # Make output read-only to prevent user edits; all writes should go
+        # through append_output so only command output is shown.
+        try:
+            self.output_text.config(state='disabled')
+        except Exception:
+            pass
+
         scrollbar = ttk.Scrollbar(text_frame, orient="vertical", command=self.output_text.yview)
         scrollbar.pack(side="right", fill="y")
         self.output_text.config(yscrollcommand=scrollbar.set)
@@ -352,6 +359,21 @@ class TimelapseGUI(tk.Tk):
         if foldername:
             entry.delete(0, tk.END)
             entry.insert(0, foldername)
+
+    def append_output(self, text):
+        """Safely append text to the output widget from any thread.
+
+        This schedules the actual insert on the Tk main thread and keeps the
+        widget in disabled state so the user cannot type into it.
+        """
+        try:
+            # enable, insert, then disable again
+            self.output_text.config(state='normal')
+            self.output_text.insert(tk.END, text)
+            self.output_text.see(tk.END)
+            self.output_text.config(state='disabled')
+        except Exception:
+            pass
 
     def load_previous_values(self):
         for key, pair in self.widgets.items():
@@ -427,7 +449,13 @@ class TimelapseGUI(tk.Tk):
         if pattern and replacement and validate_regex(pattern):
             cmd.extend(["--caption_re", pattern, replacement])
 
-        self.output_text.delete("1.0", tk.END)
+        # clear output in a safe way
+        try:
+            self.output_text.config(state='normal')
+            self.output_text.delete("1.0", tk.END)
+            self.output_text.config(state='disabled')
+        except Exception:
+            pass
         close_pair = self.widgets.get("close")
         if close_pair:
             try:
@@ -454,22 +482,37 @@ class TimelapseGUI(tk.Tk):
                 # if stop was requested, stop printing further lines
                 if getattr(self, '_stop_requested', False):
                     break
-                self.output_text.insert(tk.END, line)
-                self.output_text.see(tk.END)
-            self.process = None
-            # ensure close button is re-enabled
-            close_pair = self.widgets.get("close")
-            run_pair = self.widgets.get("run")
-            if close_pair:
+                # schedule append on main thread
                 try:
-                    close_pair[1].config(state="normal")
+                    self.output_text.after(0, lambda l=line: self.append_output(l))
                 except Exception:
-                    pass
-            if run_pair:
-                try:
-                    run_pair[1].config(state="normal")
-                except Exception:
-                    pass
+                    # fallback: try direct append
+                    try:
+                        self.append_output(line)
+                    except Exception:
+                        pass
+
+            def _finalize_after_read():
+                # mark process as finished and re-enable buttons
+                self.process = None
+                close_pair = self.widgets.get("close")
+                run_pair = self.widgets.get("run")
+                if close_pair:
+                    try:
+                        close_pair[1].config(state="normal")
+                    except Exception:
+                        pass
+                if run_pair:
+                    try:
+                        run_pair[1].config(state="normal")
+                    except Exception:
+                        pass
+
+            try:
+                # schedule finalization on main thread
+                self.output_text.after(0, _finalize_after_read)
+            except Exception:
+                _finalize_after_read()
 
         threading.Thread(target=read_output, daemon=True).start()
 
@@ -495,8 +538,14 @@ class TimelapseGUI(tk.Tk):
                     pass
             finally:
                 self.process = None
-                self.output_text.insert(tk.END, "\nProcess terminated.\n")
-                self.output_text.see(tk.END)
+                try:
+                    # use append_output to keep widget disabled for user
+                    try:
+                        self.output_text.after(0, lambda: self.append_output("\nProcess terminated.\n"))
+                    except Exception:
+                        self.append_output("\nProcess terminated.\n")
+                except Exception:
+                    pass
                 close_pair = self.widgets.get("close")
                 if close_pair:
                     try:
