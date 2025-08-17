@@ -34,6 +34,12 @@ class TimelapseGUI(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Make Timelapse")
+        # try to set a window icon if an icon file exists next to the script
+        try:
+            self.set_icon()
+        except Exception:
+            # non-fatal: ignore icon loading errors
+            pass
         self.protocol("WM_DELETE_WINDOW", self.on_close)
         self.process = None
         # flag to stop output printing when Stop is requested
@@ -347,6 +353,64 @@ class TimelapseGUI(tk.Tk):
                 pass
         except Exception:
             pass
+
+    def set_icon(self):
+        """Attempt to set a window icon from files located next to this script.
+
+        Looks for common names (make_timelapse.ico, icon.ico, make_timelapse.png, icon.png)
+        and uses an .ico on Windows via iconbitmap, or a PhotoImage for PNG via wm iconphoto.
+        Non-fatal: any failure is ignored by the caller.
+        """
+        # determine candidate directory (script dir or cwd fallback)
+        try:
+            base = os.path.dirname(os.path.abspath(__file__))
+        except Exception:
+            base = os.getcwd()
+
+        candidates = [
+            "make_timelapse_gui.ico",
+            "make_timelapse.ico",
+            "icon.ico",
+            "make_timelapse_gui.png",
+            "make_timelapse.png",
+            "icon.png",
+        ]
+
+        for name in candidates:
+            path = os.path.join(base, name)
+            if not os.path.exists(path):
+                continue
+            try:
+                abs_path = os.path.abspath(path)
+                # prefer .ico on Windows
+                if name.lower().endswith('.ico') and os.name == 'nt':
+                    try:
+                        # iconbitmap prefers an absolute path on some Windows setups
+                        self.iconbitmap(abs_path)
+                        return
+                    except Exception:
+                        # continue to try PNG route
+                        pass
+                # try PNG via PhotoImage and keep a reference on the instance
+                img = tk.PhotoImage(file=abs_path)
+                # keep reference so image isn't garbage-collected
+                try:
+                    self._icon_img = img
+                except Exception:
+                    pass
+                try:
+                    # modern Tk: iconphoto
+                    self.iconphoto(False, self._icon_img)
+                except Exception:
+                    # fallback to low-level wm call
+                    try:
+                        self.tk.call('wm', 'iconphoto', self._w, self._icon_img)
+                    except Exception:
+                        pass
+                return
+            except Exception:
+                # try next candidate
+                continue
 
     def browse_file(self, entry):
         filename = filedialog.askopenfilename()
