@@ -30,7 +30,7 @@ MakeTimelapse は、JSol'Exの画像ファイルからタイムラプス動画�
 2. pythonのライブラリの導入
 
     ```PowerShell
-    PS> pip install numpy astropy opencv-python SimpleITK
+    PS> pip install numpy astropy opencv-python SimpleITK scipy Pillow
     ```
 
 3. スクリプトの展開
