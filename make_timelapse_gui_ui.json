@@ -79,12 +79,34 @@
       "col": 2
     },
     {
+      "name": "aligned_width",
+      "label": "Aligned Width",
+      "type": "spinbox",
+      "min": 1,
+      "max": 10000,
+      "row": 5,
+      "sticky": "w",
+      "padx": 4,
+      "pady": 2
+    },
+    {
+      "name": "aligned_height",
+      "label": "Aligned Height",
+      "type": "spinbox",
+      "min": 1,
+      "max": 10000,
+      "row": 6,
+      "sticky": "w",
+      "padx": 4,
+      "pady": 2
+    },
+    {
       "name": "iterations",
       "label": "Iterations",
       "type": "spinbox",
       "min": 0,
       "max": 9999,
-      "row": 5,
+      "row": 7,
       "sticky": "w",
       "padx": 4,
       "pady": 2
@@ -96,7 +118,7 @@
       "min": 0,
       "max": 9999,
       "width": 10,
-      "row": 6,
+      "row": 8,
       "sticky": "w",
       "padx": 4,
       "pady": 2
@@ -107,7 +129,7 @@
       "type": "spinbox",
       "min": 1,
       "max": 64,
-      "row": 7,
+      "row": 9,
       "sticky": "w",
       "padx": 4,
       "pady": 2
@@ -118,7 +140,7 @@
       "type": "spinbox",
       "min": 1,
       "max": 50,
-      "row": 8,
+      "row": 10,
       "sticky": "w",
       "padx": 4,
       "pady": 2
@@ -129,7 +151,7 @@
       "type": "spinbox",
       "min": 1,
       "max": 120,
-      "row": 9,
+      "row": 11,
       "sticky": "w",
       "padx": 4,
       "pady": 2
@@ -138,7 +160,7 @@
       "name": "fast",
       "label": "Use Fast",
       "type": "check",
-      "row": 10,
+      "row": 12,
       "padx": 2,
       "pady": 2
     },
@@ -146,7 +168,7 @@
       "name": "multiscale",
       "label": "Use Multiscale",
       "type": "check",
-      "row": 11,
+      "row": 13,
       "padx": 2,
       "pady": 2
     },
@@ -154,7 +176,7 @@
       "name": "spacer_after_multiscale",
       "label": "",
       "type": "label",
-      "row": 12
+      "row": 14
     },
     {
       "name": "button_row",
@@ -210,13 +232,13 @@
       "name": "lbl_generate_movie",
       "label": "GENERATE MOVIE",
       "type": "label",
-      "row": 13
+      "row": 15
     },
     {
       "name": "caption",
       "label": "Show Caption",
       "type": "check",
-      "row": 14,
+      "row": 16,
       "padx": 2,
       "pady": 2
     },
@@ -224,7 +246,7 @@
       "name": "caption_re_pattern",
       "label": "Caption RE Pattern",
       "type": "entry",
-      "row": 15,
+      "row": 17,
       "sticky": "w",
       "padx": 4,
       "pady": 2
@@ -233,7 +255,7 @@
       "name": "caption_re_replacement",
       "label": "Caption RE Replacement",
       "type": "entry",
-      "row": 16,
+      "row": 18,
       "sticky": "w",
       "padx": 4,
       "pady": 2

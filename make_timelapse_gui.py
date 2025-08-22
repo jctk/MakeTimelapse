@@ -486,14 +486,25 @@ class TimelapseGUI(tk.Tk):
         cmd = [sys.executable, "make_timelapse.py"]
 
         def add_arg(flag, value):
-            if value:
-                cmd.extend([flag, value])
+            # ignore None and empty string - allow '0' or other falsy-but-valid values
+            if value is None:
+                return
+            if isinstance(value, str) and value.strip() == "":
+                return
+            cmd.extend([flag, str(value)])
 
+        # core parameters
         add_arg("--ref", inputs.get("ref"))
         add_arg("--input_dir", inputs.get("input_dir"))
         add_arg("--aligned_dir", inputs.get("aligned_dir"))
         if inputs.get("movie"):
             add_arg("--movie", inputs.get("movie"))
+
+        # optional: aligned output size (only include if provided)
+        add_arg("--aligned_width", inputs.get("aligned_width"))
+        add_arg("--aligned_height", inputs.get("aligned_height"))
+
+        # registration parameters
         add_arg("--iterations", inputs.get("iterations"))
         add_arg("--stddev", inputs.get("stddev"))
         if inputs.get("workers"):
@@ -502,6 +513,8 @@ class TimelapseGUI(tk.Tk):
             cmd.append("--fast")
         if inputs.get("multiscale") == True:
             cmd.append("--multiscale")
+
+        # movie params
         add_arg("--crf", inputs.get("crf"))
         fps = inputs.get("fps")
         if fps:

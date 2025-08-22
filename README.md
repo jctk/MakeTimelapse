@@ -113,6 +113,10 @@ options:
   --caption             各フレームの左下にファイル名を表示する
   --caption_re PATTERN REPLACEMENT
                         ファイル名の置換（正規表現）: PATTERN を REPLACEMENT に置換
+  --aligned_width ALIGNED_WIDTH
+                        位置合わせ後に強制する出力画像の幅（ピクセル）
+  --aligned_height ALIGNED_HEIGHT
+                        位置合わせ後に強制する出力画像の高さ（ピクセル）
 ```
 
 ### make_timelapse_gui.py

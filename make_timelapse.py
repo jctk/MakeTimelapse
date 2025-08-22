@@ -47,6 +47,8 @@ parser.add_argument('--fps', type=int, default=7, help='動画のフレームレ
 parser.add_argument("--caption", action="store_true", help="各フレームの左下にファイル名を表示する")
 parser.add_argument("--caption_re", nargs=2, metavar=('PATTERN', 'REPLACEMENT'),
                     help="ファイル名の置換（正規表現）: PATTERN を REPLACEMENT に置換")
+parser.add_argument('--aligned_width', type=int, default=None, help='位置合わせ後に強制する出力画像の幅（ピクセル）')
+parser.add_argument('--aligned_height', type=int, default=None, help='位置合わせ後に強制する出力画像の高さ（ピクセル）')
 
 args = parser.parse_args()
 
@@ -199,8 +201,24 @@ def process_image(f):
     else:
         img_uint16 = np.zeros_like(aligned_np, dtype=np.uint16)
 
-    if img_uint16.shape != (height, width):
-        img_uint16 = cv2.resize(img_uint16, (width, height), interpolation=cv2.INTER_LINEAR)
+    # Determine target size after alignment. By default use reference size
+    # If user provided --aligned_width/--aligned_height, use those values (positive ints only)
+    target_w = width
+    target_h = height
+    if args.aligned_width is not None:
+        if args.aligned_width > 0:
+            target_w = int(args.aligned_width)
+        else:
+            print(f"ignored non-positive aligned_width={args.aligned_width}", flush=True)
+    if args.aligned_height is not None:
+        if args.aligned_height > 0:
+            target_h = int(args.aligned_height)
+        else:
+            print(f"ignored non-positive aligned_height={args.aligned_height}", flush=True)
+
+    # cv2.resize expects size as (width, height)
+    if img_uint16.shape != (target_h, target_w):
+        img_uint16 = cv2.resize(img_uint16, (target_w, target_h), interpolation=cv2.INTER_LINEAR)
 
     base_name = os.path.splitext(os.path.basename(f))[0]
     save_path = os.path.join(aligned_dir, f"{base_name}{ref_ext}")
