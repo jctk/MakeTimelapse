@@ -290,14 +290,28 @@ class TimelapseGUI(tk.Tk):
         text_frame = ttk.Frame(main_frame)
         # allow overriding the output text grid via a top-level key in UI JSON
         output_def = ui_layout.get('output') or {}
-        text_opts = grid_options(output_def, defaults={'row': 101, 'column': 0, 'columnspan': 3, 'sticky': 'nsew', 'pady': 5})
+        # Determine output row from UI definition (default 101) and make only that row expandable.
+        output_row = output_def.get('row', 101)
+        text_opts = grid_options(output_def, defaults={'row': output_row, 'column': 0, 'columnspan': 3, 'sticky': 'nsew', 'pady': 5})
         text_frame.grid(**text_opts)
-        main_frame.rowconfigure(101, weight=1)
+        try:
+            # Only the output row should expand vertically when window is resized
+            main_frame.rowconfigure(output_row, weight=1)
+        except Exception:
+            pass
         # allow the three primary columns to expand so wide widgets/frames can center contents
         try:
             main_frame.columnconfigure(0, weight=1)
             main_frame.columnconfigure(1, weight=1)
             main_frame.columnconfigure(2, weight=1)
+        except Exception:
+            pass
+
+        # Ensure the button row (buttons area) does not expand vertically. Default row is 100.
+        try:
+            button_row_def = next((f for f in ui_layout.get('fields', []) if f.get('name') == 'button_row'), None)
+            button_row_index = button_row_def.get('row', 100) if button_row_def else 100
+            main_frame.rowconfigure(button_row_index, weight=0)
         except Exception:
             pass
 
