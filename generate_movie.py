@@ -17,8 +17,11 @@ def read_image(image_path):
         if data is None:
             raise ValueError(f"{image_path} に画像データが含まれていません。")
         data = np.nan_to_num(data)
-        if data.dtype.byteorder == '>':
-            data = data.byteswap().newbyteorder()
+        # Handle non-native byteorder from FITS files in a NumPy-2.0-compatible way.
+        # Older code used data.byteswap().newbyteorder(), but ndarray.newbyteorder
+        # was removed in NumPy 2.0. Use view with dtype.newbyteorder('=') instead.
+        if data.dtype.byteorder in ('>', '<'):
+            data = data.byteswap().view(data.dtype.newbyteorder('='))
         vmin, vmax = (0, 65535)
         data_clipped = np.clip(data, vmin, vmax)
         norm_data = cv2.normalize(data_clipped, None, 0, 255, cv2.NORM_MINMAX)

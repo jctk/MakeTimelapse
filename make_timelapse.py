@@ -1,5 +1,6 @@
 import os
 import glob
+import re
 import numpy as np
 from astropy.io import fits
 import cv2
@@ -35,6 +36,7 @@ def load_reference_image(path):
 parser = argparse.ArgumentParser(description='Sol\'Ex画像の歪み補正タイムラプス作成')
 parser.add_argument('--ref', type=str, required=True, help='基準となるモノクロ画像（fits, fit, png）のファイルのパス')
 parser.add_argument('--input_dir', type=str, default='./input', help='入力画像ファイル（fits, fit, png）のフォルダー')
+parser.add_argument('--input_filter', type=str, default=None, help='入力ファイルのベースネームに対する正規表現フィルタ（拡張子とディレクトリは除く）')
 parser.add_argument('--aligned_dir', type=str, default='./aligned', help='位置合わせ後画像の保存フォルダー')
 parser.add_argument('--movie', type=str, default=None, help='動画の出力ファイル名')
 parser.add_argument('--iterations', type=int, default=1200, help='DemonsRegistrationFilterの反復回数')
@@ -61,7 +63,20 @@ os.makedirs(movie_dir, exist_ok=True)
 
 # 基準画像の拡張子を取得して、それに応じたファイルのみを対象にする
 ref_ext = os.path.splitext(args.ref)[1].lower()
-input_files = glob.glob(os.path.join(input_dir, f"*{ref_ext}"))
+all_files = glob.glob(os.path.join(input_dir, f"*{ref_ext}"))
+
+# If input_filter is provided, filter by the base filename (no dir, no extension)
+if args.input_filter:
+    try:
+        pattern = re.compile(args.input_filter, re.IGNORECASE)
+    except re.error as e:
+        print(f"無効な正規表現 --input_filter={args.input_filter}: {e}", flush=True)
+        exit(1)
+
+    input_files = [f for f in all_files if pattern.search(os.path.splitext(os.path.basename(f))[0])]
+else:
+    input_files = all_files
+
 input_files = sorted(input_files)
 
 # 基準画像の読み込みとサイズ取得

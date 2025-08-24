@@ -526,6 +526,18 @@ class TimelapseGUI(tk.Tk):
         if pattern and replacement and validate_regex(pattern):
             cmd.extend(["--caption_re", pattern, replacement])
 
+        # input_filter: only include if provided and is a valid regex
+        input_filter = inputs.get("input_filter")
+        if input_filter and isinstance(input_filter, str) and input_filter.strip() != "":
+            if validate_regex(input_filter):
+                add_arg("--input_filter", input_filter)
+            else:
+                # show messagebox to inform user and skip adding the arg
+                try:
+                    messagebox.showwarning("Invalid regex", f"Input Filter が無効な正規表現です: {input_filter}")
+                except Exception:
+                    pass
+
         # clear output in a safe way
         try:
             self.output_text.config(state='normal')

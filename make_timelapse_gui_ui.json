@@ -43,10 +43,19 @@
       "col": 2
     },
     {
+      "name": "input_filter",
+      "label": "Input Filter (regex)",
+      "type": "entry",
+      "row": 3,
+      "sticky": "w",
+      "padx": 4,
+      "pady": 2
+    },
+    {
       "name": "aligned_dir",
       "label": "Aligned Directory",
       "type": "folder",
-      "row": 3,
+      "row": 4,
       "sticky": "ew",
       "padx": 4,
       "pady": 2
@@ -57,14 +66,14 @@
       "type": "button",
       "action": "browse_folder",
       "target": "aligned_dir",
-      "row": 3,
+      "row": 4,
       "col": 2
     },
     {
       "name": "movie",
       "label": "Movie File",
       "type": "file",
-      "row": 4,
+      "row": 5,
       "sticky": "ew",
       "padx": 4,
       "pady": 2
@@ -75,7 +84,7 @@
       "type": "button",
       "action": "browse_file",
       "target": "movie",
-      "row": 4,
+      "row": 5,
       "col": 2
     },
     {
@@ -84,7 +93,7 @@
       "type": "spinbox",
       "min": 1,
       "max": 10000,
-      "row": 5,
+      "row": 6,
       "sticky": "w",
       "padx": 4,
       "pady": 2
@@ -95,7 +104,7 @@
       "type": "spinbox",
       "min": 1,
       "max": 10000,
-      "row": 6,
+      "row": 7,
       "sticky": "w",
       "padx": 4,
       "pady": 2
@@ -106,7 +115,7 @@
       "type": "spinbox",
       "min": 0,
       "max": 9999,
-      "row": 7,
+      "row": 8,
       "sticky": "w",
       "padx": 4,
       "pady": 2
@@ -118,7 +127,7 @@
       "min": 0,
       "max": 9999,
       "width": 10,
-      "row": 8,
+      "row": 9,
       "sticky": "w",
       "padx": 4,
       "pady": 2
@@ -129,7 +138,7 @@
       "type": "spinbox",
       "min": 1,
       "max": 64,
-      "row": 9,
+      "row": 10,
       "sticky": "w",
       "padx": 4,
       "pady": 2
@@ -140,7 +149,7 @@
       "type": "spinbox",
       "min": 1,
       "max": 50,
-      "row": 10,
+      "row": 11,
       "sticky": "w",
       "padx": 4,
       "pady": 2
@@ -151,7 +160,7 @@
       "type": "spinbox",
       "min": 1,
       "max": 120,
-      "row": 11,
+      "row": 12,
       "sticky": "w",
       "padx": 4,
       "pady": 2
@@ -160,7 +169,7 @@
       "name": "fast",
       "label": "Use Fast",
       "type": "check",
-      "row": 12,
+      "row": 13,
       "padx": 2,
       "pady": 2
     },
@@ -168,7 +177,7 @@
       "name": "multiscale",
       "label": "Use Multiscale",
       "type": "check",
-      "row": 13,
+      "row": 14,
       "padx": 2,
       "pady": 2
     },
@@ -176,7 +185,7 @@
       "name": "spacer_after_multiscale",
       "label": "",
       "type": "label",
-      "row": 14
+      "row": 15
     },
     {
       "name": "button_row",
@@ -232,13 +241,13 @@
       "name": "lbl_generate_movie",
       "label": "GENERATE MOVIE",
       "type": "label",
-      "row": 15
+      "row": 16
     },
     {
       "name": "caption",
       "label": "Show Caption",
       "type": "check",
-      "row": 16,
+      "row": 17,
       "padx": 2,
       "pady": 2
     },
@@ -246,7 +255,7 @@
       "name": "caption_re_pattern",
       "label": "Caption RE Pattern",
       "type": "entry",
-      "row": 17,
+      "row": 18,
       "sticky": "w",
       "padx": 4,
       "pady": 2
@@ -255,14 +264,14 @@
       "name": "caption_re_replacement",
       "label": "Caption RE Replacement",
       "type": "entry",
-      "row": 18,
+      "row": 19,
       "sticky": "w",
       "padx": 4,
       "pady": 2
     }
   ],
   "output": {
-    "row": 101,
+    "row": 102,
     "column": 0,
     "columnspan": 3,
     "sticky": "nsew",
