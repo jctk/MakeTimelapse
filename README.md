@@ -99,6 +99,8 @@ options:
   --ref REF             基準となるモノクロ画像（fits, fit, png）のファイルのパス
   --input_dir INPUT_DIR
                         入力画像ファイル（fits, fit, png）のフォルダー
+  --input_filter INPUT_FILTER
+                        入力ファイルのベースネームに対する正規表現フィルタ（拡張子とディレクトリは除く）
   --aligned_dir ALIGNED_DIR
                         位置合わせ後画像の保存フォルダー
   --movie MOVIE         動画の出力ファイル名
