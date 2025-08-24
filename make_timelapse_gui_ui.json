@@ -202,10 +202,10 @@
       "name": "button_group",
       "label": "",
       "type": "frame",
-  "parent": "button_row",
-  "pack_side": "top",
-  "pack_anchor": "center",
-  "fixed_width": 300
+      "parent": "button_row",
+      "pack_side": "top",
+      "pack_anchor": "center",
+      "fixed_width": 300
     },
     {
       "name": "run",
