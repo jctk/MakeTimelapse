@@ -150,6 +150,23 @@ options:
                         ファイル名の置換（正規表現）: PATTERN を REPLACEMENT に置換
 ```
 
+### measure_quality.py
+
+```PowerShell
+PS MakeTimelapse> python .\measure_quality.py --h                                                                                                    
+usage: measure_quality.py [-h] --type {fits,png} [--csv CSV] dir
+
+太陽画像の品質計測スクリプト
+
+positional arguments:
+  dir                画像ディレクトリ
+
+options:
+  -h, --help         show this help message and exit
+  --type {fits,png}  画像形式
+  --csv CSV          品質数値をCSV出力する場合はファイル名を指定
+```
+
 ### nomalize_image.py
 
 - このスクリプトは基本的に使用しない。make_timelapse.py で基準画像に合わせたヒストグラムの調整を行うので必要がない。
@@ -202,3 +219,22 @@ options:
 - 粗いスケールから始めることで大きな構造の整合性を確保し、細かいスケールで微細な調整を行うため、**局所的なノイズや誤差の影響を軽減**できる。
 - 各スケールでの反復回数は、全体の反復回数に対して割合で指定されており、**効率的な処理**が可能である。
 - `FastSymmetricForcesDemonsRegistrationFilter` を使用することで、通常の Demons よりも**高速かつ安定した変形推定**が可能である。
+
+
+## 仕組み - 品質の測定
+
+このリポジトリに含まれる `measure_quality.py` は、指定フォルダー内の FITS/PNG 画像を一括で評価し、各画像ごとに数値化した品質指標を CSV に出力するとともに簡易的な可視化を行うツールです。
+
+主要な品質指標
+- コントラスト (`contrast`) : 画像の最大値と最小値の差分。観測画像のダイナミックレンジの粗い指標として用います。
+- Laplacian 分散 (`laplacian_variance`) : 画像に対して OpenCV の `cv2.Laplacian` を適用し、その分布の分散を計算します。小さな構造（エッジ）の鋭さ、すなわちピントの良さの目安になります。
+- リム（輪郭）フィッティング残差 (`rim_residual`) : 画像から輪郭を抽出し、最も大きな輪郭点群に対して円フィットを行い、フィットの残差（RMS, ピクセル単位）を算出します。リムがきれいに出ているほど小さな値になります。
+
+出力と挙動
+- CSV 出力列は `filename, contrast, laplacian_variance, rim_residual` です。輪郭抽出やフィットが失敗した場合は `rim_residual` に null 相当の値（空またはエラー表記）が出力されます。
+- GUI（横棒グラフ）では指標を切り替えて表示・ソートできます。GUI は指標に有効なデータがない場合にその旨を表示します。
+
+前提・注意点
+- 実行には OpenCV (`opencv-python`) が必須です。FITS を扱う場合は `astropy`、PNG を扱う場合は `Pillow` が必要です。
+- リム残差の計算は輪郭検出と最小二乗フィットに依存するため、画像や前処理次第で有効な輪郭が得られないことがあります。必要に応じて前処理（平滑化、しきい値調整、ダウンサンプリング）を行ってください。
+
