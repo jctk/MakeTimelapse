@@ -55,6 +55,7 @@ def main():
 
     qualities = []
     for f in files:
+        print(f'評価中: {os.path.basename(f)}', flush=True)
         try:
             q = measure_func(f)
         except Exception as e:
