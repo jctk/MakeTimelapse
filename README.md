@@ -154,19 +154,22 @@ options:
 
 ```PowerShell
 PS MakeTimelapse> python .\measure_quality.py --help
-usage: measure_quality.py [-h] --type {fits,png} [--csv CSV] [--input_filter INPUT_FILTER] dir
+usage: measure_quality.py [-h] --type {fits,png} [--csv CSV] [--input_filter INPUT_FILTER] [--ms-top-percent MS_TOP_PERCENT] [--ms-no-mask] dir
 
 太陽画像の品質計測スクリプト
 
 positional arguments:
-  dir                   画像ディレクトリ
+    dir                   画像ディレクトリ
 
 options:
-  -h, --help            show this help message and exit
-  --type {fits,png}     画像形式
-  --csv CSV             品質数値をCSV出力する場合はファイル名を指定
-  --input_filter INPUT_FILTER
-                        入力ファイルのベースネームに対する正規表現フィルタ（拡張子とディレクトリは除く）
+    -h, --help            show this help message and exit
+    --type {fits,png}     画像形式
+    --csv CSV             品質数値をCSV出力する場合はファイル名を指定
+    --input_filter INPUT_FILTER
+                                                入力ファイルのベースネームに対する正規表現フィルタ（拡張子とディレクトリは除く）
+    --ms-top-percent MS_TOP_PERCENT
+                                                multiscale_sharpness の上位パーセンタイル（デフォルト: 10）
+    --ms-no-mask          multiscale_sharpness で中心マスクを使わない（デフォルトはマスクを使用）
 ```
 
 ### nomalize_image.py
@@ -222,21 +225,25 @@ options:
 - 各スケールでの反復回数は、全体の反復回数に対して割合で指定されており、**効率的な処理**が可能である。
 - `FastSymmetricForcesDemonsRegistrationFilter` を使用することで、通常の Demons よりも**高速かつ安定した変形推定**が可能である。
 
-
 ## 仕組み - 品質の測定
 
 このリポジトリに含まれる `measure_quality.py` は、指定フォルダー内の FITS/PNG 画像を一括で評価し、各画像ごとに数値化した品質指標を CSV に出力するとともに簡易的な可視化を行うツールです。
 
-主要な品質指標
+### 主要な品質指標
+
 - コントラスト (`contrast`) : 画像の最大値と最小値の差分。観測画像のダイナミックレンジの粗い指標として用います。
 - Laplacian 分散 (`laplacian_variance`) : 画像に対して OpenCV の `cv2.Laplacian` を適用し、その分布の分散を計算します。小さな構造（エッジ）の鋭さ、すなわちピントの良さの目安になります。
 - リム（輪郭）フィッティング残差 (`rim_residual`) : 画像から輪郭を抽出し、最も大きな輪郭点群に対して円フィットを行い、フィットの残差（RMS, ピクセル単位）を算出します。リムがきれいに出ているほど小さな値になります。
+- マルチスケールシャープネス (`multiscale_sharpness`) : マルチスケール（複数のガウシアン平滑化スケール）で Laplacian 応答を計算し、各スケールで高応答値（上位パーセンタイル）の平均を取り、最終的にスケール間で平均化したスコアです。高周波成分（エッジ）の強いフレームが高スコアになります。デフォルトでは上位10%を集計し、中心寄せのマスクで天体領域を重視します。
 
-出力と挙動
-- CSV 出力列は `filename, contrast, laplacian_variance, rim_residual` です。輪郭抽出やフィットが失敗した場合は `rim_residual` に null 相当の値（空またはエラー表記）が出力されます。
-- GUI（横棒グラフ）では指標を切り替えて表示・ソートできます。GUI は指標に有効なデータがない場合にその旨を表示します。
+### 出力と挙動
 
-前提・注意点
+- CSV 出力列は `filename, contrast, laplacian_variance, rim_residual, multiscale_sharpness` です。
+- 輪郭抽出や円フィットが失敗した場合は `rim_residual` に空欄（空のセル）が出力されます。`multiscale_sharpness` が計算できない場合も同様に空欄になります。処理そのものが例外で失敗した場合は、その行の各値が空欄になることがあります。
+- GUI（横棒グラフ）では指標を切り替えて表示・ソートできます。選択した指標に有効なデータがない場合は GUI 上にその旨が表示されます。
+
+### 前提・注意点
+
 - 実行には OpenCV (`opencv-python`) が必須です。FITS を扱う場合は `astropy`、PNG を扱う場合は `Pillow` が必要です。
 - リム残差の計算は輪郭検出と最小二乗フィットに依存するため、画像や前処理次第で有効な輪郭が得られないことがあります。必要に応じて前処理（平滑化、しきい値調整、ダウンサンプリング）を行ってください。
 

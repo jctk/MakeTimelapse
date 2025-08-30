@@ -25,7 +25,7 @@ try:
 except ImportError:
     raise ImportError('OpenCV が必要です: pip install opencv-python')
 
-def measure_quality_fits(filepath):
+def measure_quality_fits(filepath, ms_top_percent=10, ms_use_mask=True):
     if fits is None:
         raise ImportError('astropyが必要です: pip install astropy')
     with fits.open(filepath) as hdul:
@@ -39,9 +39,10 @@ def measure_quality_fits(filepath):
     lap_var = float(np.var(lap))
     # 返り値: contrast, lap_var, rim_res (rim residual)
     rim_res = compute_rim_residual(data)
-    return contrast, lap_var, rim_res
+    multiscale_sharpness = compute_multiscale_sharpness(data, top_percent=ms_top_percent, use_mask=ms_use_mask)
+    return contrast, lap_var, rim_res, multiscale_sharpness
 
-def measure_quality_png(filepath):
+def measure_quality_png(filepath, ms_top_percent=10, ms_use_mask=True):
     if Image is None:
         raise ImportError('Pillowが必要です: pip install pillow')
     img = Image.open(filepath).convert('L')
@@ -52,7 +53,8 @@ def measure_quality_png(filepath):
     lap_var = float(np.var(lap))
     # リム残差（輪郭フィッティング残差）を計算
     rim_res = compute_rim_residual(data)
-    return contrast, lap_var, rim_res
+    multiscale_sharpness = compute_multiscale_sharpness(data, top_percent=ms_top_percent, use_mask=ms_use_mask)
+    return contrast, lap_var, rim_res, multiscale_sharpness
 
 def compute_rim_residual(data):
     """円フィットに対する輪郭残差のRMSを返す（ピクセル単位）。
@@ -98,12 +100,63 @@ def compute_rim_residual(data):
     except Exception:
         return None
 
+
+def compute_multiscale_sharpness(data, top_percent=10, use_mask=True):
+    """マルチスケールシャープネス指標の実装。
+    手法（簡易）:
+      - 入力を float に正規化
+      - 異なるガウシアン平滑化（複数スケール）で Laplacian 応答を計算
+      - 応答の上位 top_percent% を各スケールで抽出し平均化、スケール間で平均化して最終スコアを得る
+    戻り値: float スコア、計算失敗時は None
+    """
+    try:
+        a = np.asarray(data, dtype=np.float32)
+        if a.size == 0:
+            return None
+        # マルチスケール: 異なる平滑化強度でスコアを計算し平均化する
+        sigmas = [1.0, 2.0, 4.0]
+        scores = []
+        meanv = np.mean(a)
+        if meanv == 0:
+            meanv = 1.0
+        for sigma in sigmas:
+            norm = a / (meanv + 1e-6)
+            # カーネルサイズは sigma に合わせる（奇数）
+            ksize = max(3, int(2 * round(3 * sigma) + 1))
+            blur = cv2.GaussianBlur(norm, (ksize, ksize), sigma)
+            lap = cv2.Laplacian(blur, ddepth=cv2.CV_32F)
+            resp = np.abs(lap)
+            if use_mask:
+                h, w = resp.shape[:2]
+                yy, xx = np.ogrid[:h, :w]
+                cy, cx = h/2.0, w/2.0
+                r = min(h, w) * 0.45
+                mask = ((yy - cy)**2 + (xx - cx)**2) <= (r*r)
+                resp_vals = resp[mask]
+            else:
+                resp_vals = resp.ravel()
+            if resp_vals.size == 0:
+                continue
+            k = max(1, int(len(resp_vals) * (top_percent/100.0)))
+            thresh = np.partition(resp_vals, -k)[-k]
+            top_vals = resp_vals[resp_vals >= thresh]
+            scores.append(float(np.mean(top_vals)))
+        if not scores:
+            return None
+        # 各スケールの平均を返す
+        return float(np.mean(scores))
+    except Exception:
+        return None
+
 def main():
     parser = argparse.ArgumentParser(description='太陽画像の品質計測スクリプト')
     parser.add_argument('dir', help='画像ディレクトリ')
     parser.add_argument('--type', choices=['fits', 'png'], required=True, help='画像形式')
     parser.add_argument('--csv', help='品質数値をCSV出力する場合はファイル名を指定')
     parser.add_argument('--input_filter', help='入力ファイルのベースネームに対する正規表現フィルタ（拡張子とディレクトリは除く）')
+    parser.add_argument('--ms-top-percent', type=int, default=10, help='multiscale_sharpness の上位パーセンタイル（デフォルト10）')
+    parser.add_argument('--ms-no-mask', dest='ms_use_mask', action='store_false', help='multiscale_sharpness で中心マスクを使わない')
+    parser.set_defaults(ms_use_mask=True)
     args = parser.parse_args()
 
     if args.type == 'fits':
@@ -135,19 +188,19 @@ def main():
     for f in files:
         print(f'評価中: {os.path.basename(f)}', flush=True)
         try:
-            q = measure_func(f)
-            # q は (contrast, lap_var)
+            q = measure_func(f, ms_top_percent=args.ms_top_percent, ms_use_mask=args.ms_use_mask)
+            # q は (contrast, lap_var, rim_res, multiscale_sharpness)
         except Exception as e:
             print(f'{f} の品質計算失敗: {e}')
-            q = (None, None)
+            q = (None, None, None, None)
         qualities.append((os.path.basename(f), q))
 
     # 横棒グラフ + 並べ替えコントロール
     import matplotlib.widgets as mwidgets
 
     # データ抽出
-    # qualities の各要素: (filename, (contrast, lap_var, rim_res))
-    valid_data = [(x[0], x[1][0], x[1][1], x[1][2]) for x in qualities if x[1][0] is not None]
+    # qualities の各要素: (filename, (contrast, lap_var, rim_res, multiscale_sharpness))
+    valid_data = [(x[0], x[1][0], x[1][1], x[1][2], x[1][3]) for x in qualities if x[1][0] is not None]
     if not valid_data:
         print('有効な品質データがありません')
         return
@@ -181,7 +234,7 @@ def main():
 
     # 初期表示はファイル名順
     sort_mode = 'filename'
-    # metric_index: 1=contrast, 2=lap_var, 3=rim_res
+    # metric_index: 1=contrast, 2=lap_var, 3=rim_res, 4=autostakkert_like
     metric_index = 1
     sorted_data = sort_data(sort_mode, metric_index)
     # 逆順にする
@@ -193,20 +246,28 @@ def main():
     if args.csv:
         with open(args.csv, 'w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
-            writer.writerow(['filename', 'contrast', 'laplacian_variance', 'rim_residual'])
+            writer.writerow(['filename', 'contrast', 'laplacian_variance', 'rim_residual', 'multiscale_sharpness'])
             for name, val in qualities:
                 if val is None:
-                    writer.writerow([name, 'error', 'error', 'error'])
+                    # 計算に失敗した場合は空欄（空セル）にする
+                    writer.writerow([name, '', '', '', ''])
                 else:
-                    # val は (contrast, lap_var, rim_res)
-                    writer.writerow([name, val[0], val[1], val[2]])
+                    # val は (contrast, lap_var, rim_res, multiscale_sharpness)
+                    # None 値は空欄にする
+                    out = [name]
+                    for item in val:
+                        out.append('' if item is None else item)
+                    writer.writerow(out)
         print(f'CSV出力: {args.csv}')
 
     # 1目盛りの高さを文字の高さの120%にする
     font_size_pt = plt.rcParams['font.size'] if 'font.size' in plt.rcParams else 12
     # pt→inch換算（1inch=72pt）
     bar_height_inch = font_size_pt * 1.2 / 72
-    fig_height = len(names) * bar_height_inch
+    # 行数が少ない場合でも各行の高さを保つため最小行数を確保する
+    min_display_rows = 20
+    display_rows = max(len(names), min_display_rows)
+    fig_height = display_rows * bar_height_inch
     import tkinter as tk
     from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
@@ -231,6 +292,8 @@ def main():
 
     # matplotlib Figure作成（目盛り高さ固定）
     fig, ax = plt.subplots(figsize=(max(8, 5), fig_height))
+    # 余白を広めにとってファイル名が収まるようにする
+    fig.subplots_adjust(left=0.30, right=0.98, top=0.88, bottom=0.02)
     bars = ax.barh(names, values)
     ax.set_xlabel('品質（コントラスト）', loc='left')
     ax.set_ylabel('ファイル名')
@@ -244,11 +307,20 @@ def main():
         start = (start_num // 1000) * 1000
         start = max(start, 0)
         ax.set_xlim(left=start)
-    # 各横棒の右端に品質数値を描画
+    # 各横棒の右端に品質数値を描画（指標に応じて表示桁数を調整）
     pad = max(values)*0.01 if values else 1.0
+    # ytick のフォントサイズを明示
+    ytick_fs = font_size_pt
+    ax.tick_params(axis='y', labelsize=ytick_fs)
     for i, (bar, val) in enumerate(zip(bars, values)):
-        ax.text(val + pad, bar.get_y() + bar.get_height()/2, f'{val:.1f}', va='center', ha='left', fontsize=10)
-    plt.tight_layout()
+        if metric_index == 4:
+            label_text = f'{val:.4f}'
+        elif metric_index == 1:
+            label_text = f'{val:.1f}'
+        else:
+            label_text = f'{val:.3f}' if abs(val) < 1 else f'{val:.1f}'
+        ax.text(val + pad, bar.get_y() + bar.get_height()/2, label_text, va='center', ha='left', fontsize=10)
+    fig.tight_layout(pad=0.6)
 
     # 並べ替え/指標選択コントロール
     control_frame = tk.Frame(root)
@@ -268,9 +340,11 @@ def main():
     m1 = tk.Radiobutton(metric_group, text='コントラスト', variable=metric_var, value='contrast')
     m2 = tk.Radiobutton(metric_group, text='Laplacian variance', variable=metric_var, value='lap')
     m3 = tk.Radiobutton(metric_group, text='リム残差', variable=metric_var, value='rim')
+    m4 = tk.Radiobutton(metric_group, text='マルチスケールシャープネス', variable=metric_var, value='ms')
     m1.pack(side=tk.LEFT, padx=4)
     m2.pack(side=tk.LEFT, padx=4)
     m3.pack(side=tk.LEFT, padx=4)
+    m4.pack(side=tk.LEFT, padx=4)
     # 指標切替で再描画されるようにコマンドは後で設定（update_graph_tk 定義後）
 
     # FigureCanvasをCanvasに埋め込む
@@ -320,8 +394,10 @@ def main():
             metric_idx = 1
         elif sel == 'lap':
             metric_idx = 2
-        else:
+        elif sel == 'rim':
             metric_idx = 3
+        else:
+            metric_idx = 4
         sorted_data = sort_data(mode, metric_idx)
         sorted_data = list(reversed(sorted_data))
         # 指標が None の行は除外して描画
@@ -348,8 +424,10 @@ def main():
             xlabel_label = '品質（コントラスト）'
         elif sel == 'lap':
             xlabel_label = '品質（Laplacian variance）'
-        else:
+        elif sel == 'rim':
             xlabel_label = '品質（リム残差）'
+        else:
+            xlabel_label = '品質（マルチスケールシャープネス）'
         ax.set_xlabel(xlabel_label, loc='left')
         ax.set_ylabel('ファイル名')
         ax.set_title('画像品質 横棒グラフ')
@@ -358,9 +436,18 @@ def main():
         ax.spines['right'].set_visible(False)  # 右端の縦線を非表示
         # 各横棒の右端に品質数値を描画
         pad = max(values)*0.01 if values else 1.0
+        # ytick のフォントサイズを明示
+        ax.tick_params(axis='y', labelsize=font_size_pt)
         for i, (bar, val) in enumerate(zip(bars, values)):
-            ax.text(val + pad, bar.get_y() + bar.get_height()/2, f'{val:.1f}', va='center', ha='left', fontsize=10)
-        plt.tight_layout()
+            # 選択指標 sel に応じたラベル表示
+            if sel == 'ms':
+                label_text = f'{val:.4f}'
+            elif sel == 'contrast':
+                label_text = f'{val:.1f}'
+            else:
+                label_text = f'{val:.3f}' if abs(val) < 1 else f'{val:.1f}'
+            ax.text(val + pad, bar.get_y() + bar.get_height()/2, label_text, va='center', ha='left', fontsize=10)
+        fig.tight_layout(pad=0.6)
         fig_canvas.draw()
         fig_widget.update_idletasks()
         canvas.config(scrollregion=canvas.bbox("all"))
@@ -372,6 +459,7 @@ def main():
     m1.config(command=update_graph_tk)
     m2.config(command=update_graph_tk)
     m3.config(command=update_graph_tk)
+    m4.config(command=update_graph_tk)
 
     root.mainloop()
 
