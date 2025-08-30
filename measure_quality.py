@@ -7,6 +7,7 @@ import matplotlib
 matplotlib.rcParams['font.family'] = 'MS Gothic'
 import csv
 from glob import glob
+import re
 
 # FITS画像用
 try:
@@ -102,6 +103,7 @@ def main():
     parser.add_argument('dir', help='画像ディレクトリ')
     parser.add_argument('--type', choices=['fits', 'png'], required=True, help='画像形式')
     parser.add_argument('--csv', help='品質数値をCSV出力する場合はファイル名を指定')
+    parser.add_argument('--input_filter', help='入力ファイルのベースネームに対する正規表現フィルタ（拡張子とディレクトリは除く）')
     args = parser.parse_args()
 
     if args.type == 'fits':
@@ -112,6 +114,19 @@ def main():
         measure_func = measure_quality_png
 
     files = sorted(glob(os.path.join(args.dir, ext)))
+    # 入力ベースネームに対する正規表現フィルタが指定されていれば適用
+    if getattr(args, 'input_filter', None):
+        try:
+            pattern = re.compile(args.input_filter)
+        except re.error as e:
+            print(f'--input_filter の正規表現が無効です: {e}')
+            return
+        filtered = []
+        for f in files:
+            bn = os.path.splitext(os.path.basename(f))[0]
+            if pattern.search(bn):
+                filtered.append(f)
+        files = filtered
     if not files:
         print('画像が見つかりません')
         return

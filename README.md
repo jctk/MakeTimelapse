@@ -153,18 +153,20 @@ options:
 ### measure_quality.py
 
 ```PowerShell
-PS MakeTimelapse> python .\measure_quality.py --h                                                                                                    
-usage: measure_quality.py [-h] --type {fits,png} [--csv CSV] dir
+PS MakeTimelapse> python .\measure_quality.py --help
+usage: measure_quality.py [-h] --type {fits,png} [--csv CSV] [--input_filter INPUT_FILTER] dir
 
 太陽画像の品質計測スクリプト
 
 positional arguments:
-  dir                画像ディレクトリ
+  dir                   画像ディレクトリ
 
 options:
-  -h, --help         show this help message and exit
-  --type {fits,png}  画像形式
-  --csv CSV          品質数値をCSV出力する場合はファイル名を指定
+  -h, --help            show this help message and exit
+  --type {fits,png}     画像形式
+  --csv CSV             品質数値をCSV出力する場合はファイル名を指定
+  --input_filter INPUT_FILTER
+                        入力ファイルのベースネームに対する正規表現フィルタ（拡張子とディレクトリは除く）
 ```
 
 ### nomalize_image.py
