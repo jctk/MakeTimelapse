@@ -151,17 +151,31 @@ def main():
     if not valid_data:
         print('有効な品質データがありません')
         return
+    # 全ファイルのコントラスト最小値（後で軸開始に使用）
+    try:
+        global_min_contrast = min(x[1] for x in valid_data if x[1] is not None)
+    except ValueError:
+        global_min_contrast = None
 
     def sort_data(mode, metric_index=1):
         # valid_data: (filename, contrast, lap_var)
         if mode == 'filename':
             return sorted(valid_data, key=lambda x: x[0])
         elif mode == 'quality':
-            # None を比較可能にするため、None を -inf に置換してソートする。
-            def key_fn(x):
-                v = x[metric_index]
-                return v if v is not None else float('-inf')
-            return sorted(valid_data, key=key_fn, reverse=True)
+            # metric_index に応じて昇順／降順を選ぶ
+            # contrast/lap (1/2) は降順（大きいほど良い）、rim (3) は昇順（小さいほど良い）
+            if metric_index == 3:
+                # None は +inf にして末尾に来るようにする（昇順）
+                def key_fn(x):
+                    v = x[metric_index]
+                    return float('inf') if v is None else v
+                return sorted(valid_data, key=key_fn, reverse=False)
+            else:
+                # None は -inf にして末尾に来るようにする（降順）
+                def key_fn(x):
+                    v = x[metric_index]
+                    return v if v is not None else float('-inf')
+                return sorted(valid_data, key=key_fn, reverse=True)
         else:
             return valid_data
 
@@ -224,6 +238,12 @@ def main():
     ax.xaxis.set_label_position('top')
     ax.xaxis.tick_top()
     ax.spines['right'].set_visible(False)  # 右端の縦線を非表示
+    # コントラスト指標の場合、横軸開始を全ファイルの最小コントラスト-1000 の下3桁を0にした値に設定
+    if metric_index == 1 and global_min_contrast is not None:
+        start_num = int(global_min_contrast) - 1000
+        start = (start_num // 1000) * 1000
+        start = max(start, 0)
+        ax.set_xlim(left=start)
     # 各横棒の右端に品質数値を描画
     pad = max(values)*0.01 if values else 1.0
     for i, (bar, val) in enumerate(zip(bars, values)):
@@ -238,7 +258,7 @@ def main():
     sort_group.pack(anchor=tk.N, pady=(10,0))
     sort_var = tk.StringVar(value='ファイル名順')
     radio1 = tk.Radiobutton(sort_group, text='ファイル名順', variable=sort_var, value='ファイル名順')
-    radio2 = tk.Radiobutton(sort_group, text='品質降順', variable=sort_var, value='品質降順')
+    radio2 = tk.Radiobutton(sort_group, text='品質順', variable=sort_var, value='品質順')
     radio1.pack(side=tk.LEFT, padx=4)
     radio2.pack(side=tk.LEFT, padx=4)
     # --- 指標選択グループ（横並び）
@@ -317,6 +337,12 @@ def main():
         names = [x[0] for x in filtered]
         values = [float(x[metric_idx]) for x in filtered]
         bars = ax.barh(names, values)
+        # コントラスト指標の場合、横軸開始を全ファイルの最小コントラスト-1000 の下3桁を0にした値に設定
+        if sel == 'contrast' and global_min_contrast is not None:
+            start_num = int(global_min_contrast) - 1000
+            start = (start_num // 1000) * 1000
+            start = max(start, 0)
+            ax.set_xlim(left=start)
         # 軸ラベルを選択した指標に合わせる
         if sel == 'contrast':
             xlabel_label = '品質（コントラスト）'
