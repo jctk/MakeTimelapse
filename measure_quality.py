@@ -4,27 +4,17 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
-matplotlib.rcParams['font.family'] = 'MS Gothic'
 import csv
 from glob import glob
 import re
+from astropy.io import fits # FITS画像用
+from PIL import Image       # PNG画像用
+import cv2                  # OpenCV (Laplacian)
 
-# FITS画像用
-try:
-    from astropy.io import fits
-except ImportError:
-    fits = None
-# PNG画像用
-try:
-    from PIL import Image
-except ImportError:
-    Image = None
-# OpenCV (Laplacian) 必須
-try:
-    import cv2
-except ImportError:
-    raise ImportError('OpenCV が必要です: pip install opencv-python')
+# 日本語フォント設定（MS ゴシック）
+matplotlib.rcParams['font.family'] = 'MS Gothic'
 
+# FITS画像用品質計測
 def measure_quality_fits(filepath, ms_top_percent=10, ms_use_mask=True):
     if fits is None:
         raise ImportError('astropyが必要です: pip install astropy')
@@ -42,6 +32,7 @@ def measure_quality_fits(filepath, ms_top_percent=10, ms_use_mask=True):
     multiscale_sharpness = compute_multiscale_sharpness(data, top_percent=ms_top_percent, use_mask=ms_use_mask)
     return contrast, lap_var, rim_res, multiscale_sharpness
 
+# PNG画像用品質計測
 def measure_quality_png(filepath, ms_top_percent=10, ms_use_mask=True):
     if Image is None:
         raise ImportError('Pillowが必要です: pip install pillow')
@@ -56,6 +47,7 @@ def measure_quality_png(filepath, ms_top_percent=10, ms_use_mask=True):
     multiscale_sharpness = compute_multiscale_sharpness(data, top_percent=ms_top_percent, use_mask=ms_use_mask)
     return contrast, lap_var, rim_res, multiscale_sharpness
 
+# リム残差計算
 def compute_rim_residual(data):
     """円フィットに対する輪郭残差のRMSを返す（ピクセル単位）。
     data: 2D numpy array (float32)
@@ -100,7 +92,7 @@ def compute_rim_residual(data):
     except Exception:
         return None
 
-
+# マルチスケールシャープネス計算
 def compute_multiscale_sharpness(data, top_percent=10, use_mask=True):
     """マルチスケールシャープネス指標の実装。
     手法（簡易）:
@@ -167,6 +159,7 @@ def main():
         measure_func = measure_quality_png
 
     files = sorted(glob(os.path.join(args.dir, ext)))
+
     # 入力ベースネームに対する正規表現フィルタが指定されていれば適用
     if getattr(args, 'input_filter', None):
         try:
@@ -273,7 +266,7 @@ def main():
 
     # Tkinterウィンドウ作成
     root = tk.Tk()
-    root.title('画像品質 横棒グラフ')
+    root.wm_title('画像品質')
     window_width = 900
     window_height = 600
     root.geometry(f'{window_width}x{window_height}')
@@ -297,7 +290,7 @@ def main():
     bars = ax.barh(names, values)
     ax.set_xlabel('品質（コントラスト）', loc='left')
     ax.set_ylabel('ファイル名')
-    ax.set_title('画像品質 横棒グラフ')
+    ax.set_title('画像品質')
     ax.xaxis.set_label_position('top')
     ax.xaxis.tick_top()
     ax.spines['right'].set_visible(False)  # 右端の縦線を非表示
@@ -430,7 +423,7 @@ def main():
             xlabel_label = '品質（マルチスケールシャープネス）'
         ax.set_xlabel(xlabel_label, loc='left')
         ax.set_ylabel('ファイル名')
-        ax.set_title('画像品質 横棒グラフ')
+        ax.set_title('画像品質')
         ax.xaxis.set_label_position('top')
         ax.xaxis.tick_top()
         ax.spines['right'].set_visible(False)  # 右端の縦線を非表示
